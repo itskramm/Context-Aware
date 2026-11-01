@@ -36,6 +36,22 @@ Detailed guide on AI features and implementation:
 
 ---
 
+### [ai-alternatives.md](./ai-alternatives.md) ⭐ NEW!
+**Comprehensive AI Service Alternatives**
+
+Complete comparison of 17+ AI services:
+- Speech-to-text options (Whisper, Deepgram, AssemblyAI, etc.)
+- Premium LLMs (GPT-4, Claude, Gemini)
+- Budget-friendly alternatives (GPT-4o-mini, Gemini Flash)
+- Free/open-source options (Local Whisper, Llama 3.1)
+- Cost comparisons ($0-$1.05 per lecture)
+- Self-hosting guide
+- Recommendations by use case
+
+**Use this**: When choosing AI services, comparing costs, or setting up self-hosted AI.
+
+---
+
 ## 📖 Other Project Documentation
 
 Located in the project root:

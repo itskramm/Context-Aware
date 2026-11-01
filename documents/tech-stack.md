@@ -112,14 +112,21 @@ firestore/
 ## 🤖 AI & ML Stack (Planned)
 
 ### Speech Processing
-- **OpenAI Whisper API** - Speech-to-text transcription
-- **AssemblyAI (alternative)** - Audio intelligence
+- **OpenAI Whisper API** ⭐ - Speech-to-text transcription ($0.006/min)
+- **Deepgram** 💰 - Budget alternative ($0.0043/min)
+- **Whisper (Local)** 🆓 - Free self-hosted option
+- **AssemblyAI** - Advanced features (speaker detection, chapters)
 - **FFmpeg** - Audio/video processing
 
 ### Natural Language Processing
-- **OpenAI GPT-4** - Text generation and summarization
-- **Claude (Anthropic)** - Alternative LLM
-- **OpenAI Embeddings** - Text vectorization
+- **OpenAI GPT-4o-mini** ⭐ - Best value premium ($0.15/1M tokens)
+- **OpenAI GPT-4** - Highest quality ($0.03/1K tokens input)
+- **Gemini 1.5 Flash** 🆓 - Free tier option (15 RPM free)
+- **Claude 3.5 Sonnet** - Excellent for long documents
+- **Llama 3.1** 🆓 - Free self-hosted (8B/70B variants)
+- **OpenAI Embeddings** - Text vectorization ($0.13/1M tokens)
+
+> **💡 See [ai-alternatives.md](./ai-alternatives.md) for comprehensive comparison of 17+ AI services including free/open-source options!**
 
 ### Vector Database (Future)
 - **Pinecone** - Vector similarity search
