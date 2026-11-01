@@ -1,196 +1,238 @@
-# Testing Guide - YouTube Processing
+# Context-Aware Testing Guide
 
-## Quick Test (After Render Deployment)
+## Quick Start
 
-### 1. Wait for Deployment
-- Render will automatically deploy after GitHub push
-- Check deployment status: https://dashboard.render.com
-- Look for "Live" status and successful build logs
+Test Account:
+- **Email**: demoaccount@contextaware.com
+- **Password**: demo12345678910
 
-### 2. Test YouTube Upload
+## Current Status
 
-**Test Video (Short, 3 minutes):**
+### ✅ Working
+- Backend deployed successfully on Render
+- Frontend deployed on Vercel
+- File upload with drag-and-drop UI
+- Multer backend endpoint (/api/lectures/upload)
+- Local file processing (audio extraction without download)
+- Backend successfully processes uploads (confirmed in logs)
+
+### 🔧 Debugging NOW
+- Added detailed console logging to track XHR response handling
+- Pushed commit `ff696d9` - waiting for Vercel deployment
+- Frontend shows "Uploading" despite 201 success response
+
+### ❌ Known Issues
+- YouTube downloads fail (bot detection from Render IPs)
+- Frontend may not have latest deployed code from Vercel
+- User's browser may have cached old frontend code
+
+## URLs
+- **Frontend**: https://contextaware.vercel.app
+- **Backend**: https://contextaware-backend.onrender.com
+
+## 🚨 IMMEDIATE ACTION REQUIRED
+
+### Step 1: Wait for Vercel Deployment
+1. Check Vercel dashboard: https://vercel.com/dashboard
+2. Look for deployment triggered by commit `ff696d9`
+3. Wait until status shows "Ready" (usually 30-60 seconds)
+
+### Step 2: Hard Refresh Browser
+**This is CRITICAL** - your browser has cached the old JavaScript:
+
+**Windows/Linux**: `Ctrl + Shift + R`
+**Mac**: `Cmd + Shift + R`
+
+Or manually:
+1. Open DevTools (F12)
+2. Right-click the refresh button
+3. Select "Empty Cache and Hard Reload"
+
+### Step 3: Test Upload with Console Open
+
+1. **BEFORE uploading**, open DevTools Console tab (F12 → Console)
+2. Go to Upload Lecture page
+3. Upload a file (any video/audio under 500MB)
+4. **Watch the Console** for these logs:
+
+**Expected Console Output:**
 ```
-https://www.youtube.com/watch?v=jNQXAC9IVRw
-Title: "Me at the zoo" (First YouTube video ever)
+XHR load event fired!
+Status: 201
+Response: {"lecture":{"id":"abc123xyz","title":"...","videoUrl":"..."}...}
+Parsed response: {lecture: {id: 'abc123xyz', ...}}
+Upload completed successfully! {lecture: {...}}
+Navigating to lecture: abc123xyz
 ```
 
-**Steps:**
+If you see these logs → XHR is working correctly
+If you DON'T see these logs → XHR load event isn't firing (deeper issue)
+
+### Step 4: Also Check Network Tab
+
+1. Open Network tab alongside Console
+2. Filter by "upload"
+3. Upload file
+4. Click on the POST request to `/api/lectures/upload`
+5. Verify:
+   - Status: `201 Created`
+   - Response tab shows JSON with lecture data
+   - Time: 2-10 seconds
+
+## How to Test Upload
+
 1. Go to https://contextaware.vercel.app
-2. Login with test account: `demoaccount@contextaware.com` / `demo12345678910`
+2. Login with test account
 3. Click "Upload Lecture" in sidebar
-4. Fill in form:
-   - Title: "Test YouTube Processing"
-   - Video URL: `https://www.youtube.com/watch?v=jNQXAC9IVRw`
-   - Tags: test, youtube
-   - Purpose: general
-5. Click "Upload Lecture"
-6. Should see success message and redirect to My Lectures
+4. Switch to "Upload file" tab
+5. Drag and drop a video/audio file (max 500MB)
+6. Fill in title and optional tags
+7. **Open Console tab FIRST** (F12 → Console)
+8. Click "Upload & Create Lecture"
+9. **Watch Console output**
+10. Check Network tab if Console shows nothing
 
-### 3. Monitor Processing
+## Expected Behavior
 
-**Check Lecture Status:**
-1. Go to My Lectures page
-2. Find your new lecture
-3. Status should show "Processing" initially
-4. Refresh page after 1-2 minutes
-5. Status should change to "Completed"
+### File Upload Flow:
+1. User selects/drops file → Frontend validates size/type
+2. Frontend creates FormData and sends XHR to `/api/lectures/upload`
+3. Backend (multer) saves file to `/opt/render/project/src/backend/uploads/`
+4. Backend creates lecture in Firestore with local file path
+5. Backend starts background processing (audio extraction, transcription, AI)
+6. Backend responds immediately with 201 and lecture data
+7. **Frontend should**: Navigate to lecture detail page
+8. **Frontend currently does**: Gets stuck on "Uploading" step
 
-**Check Render Logs:**
-1. Go to Render dashboard
-2. Click on your backend service
-3. Go to "Logs" tab
-4. Look for these messages:
-   ```
-   Downloading YouTube audio with yt-dlp...
-   YouTube audio downloaded successfully
-   Transcribing audio with Groq Whisper...
-   Lecture processing completed
-   ```
+### What Backend Processes in Background:
+- Audio extraction (skip for MP3/WAV/M4A, convert video to MP3)
+- Transcription (Groq Whisper API - FREE)
+- AI analysis (Groq GPT-OSS-120B - FREE)
+- Generate digest, topics, segments, interactions
 
-### 4. View Results
+## Network Tab Guide
 
-**Check Transcript:**
-1. Click on the completed lecture
-2. Should see transcript with timestamps
-3. Check for Topics tab with extracted topics
-4. Try generating a digest
+### Where to Find Upload Request:
+1. Open DevTools (F12)
+2. Click "Network" tab
+3. Start recording if not already (red dot at top-left should be filled)
+4. Filter by "Fetch/XHR" or type "upload" in filter box
+5. Upload a file
+6. Look for: POST request to `/api/lectures/upload`
 
-## Expected Timeline
+### What to Check:
+- **Status**: Should be `201 Created` (not 304, 200, or 500)
+- **Size**: Response should be around 0.5-1 kB (JSON response)
+- **Time**: Upload time varies (2-20 seconds depending on file size)
+- **Response**: Click request → Response tab → Should show JSON like:
+  ```json
+  {
+    "lecture": {
+      "id": "abc123xyz",
+      "title": "My Lecture",
+      "videoUrl": "/opt/render/project/src/backend/uploads/filename.mp4",
+      ...
+    }
+  }
+  ```
 
-| Video Length | Expected Processing Time |
-|-------------|-------------------------|
-| 0-5 min     | 30-60 seconds          |
-| 5-10 min    | 1-2 minutes            |
-| 10-20 min   | 2-4 minutes            |
-| 20-30 min   | 4-6 minutes            |
-
-## What to Check
-
-### ✅ Success Indicators
-- [ ] Upload form accepts YouTube URL
-- [ ] Lecture created with "Processing" status
-- [ ] Render logs show yt-dlp download
-- [ ] Status changes to "Completed"
-- [ ] Transcript visible with timestamps
-- [ ] Topics extracted and visible
-- [ ] Can generate digest from transcript
-
-### ❌ Common Issues
-
-**Issue: "yt-dlp is not installed"**
-- Check Render build logs for install-ytdlp.sh output
-- May need to trigger manual redeploy
-- Verify Python is available on Render
-
-**Issue: "Download timeout"**
-- Video too long for free tier
-- Try shorter video (<10 minutes)
-- Check Render memory usage
-
-**Issue: "Status stuck on Processing"**
-- Check Render logs for errors
-- Free tier may have cold start delay
-- Wait 5 minutes, then check logs
-
-**Issue: "Invalid YouTube URL"**
-- Must be full URL: `https://www.youtube.com/watch?v=VIDEO_ID`
-- Not shortened: `youtu.be/VIDEO_ID` (should work but test)
-- Not playlist or channel URLs
-
-## Test Videos (Short & Safe)
-
-1. **Me at the zoo** (0:19)
-   ```
-   https://www.youtube.com/watch?v=jNQXAC9IVRw
-   ```
-
-2. **First YouTube Video** (0:18)
-   ```
-   https://www.youtube.com/watch?v=jNQXAC9IVRw
-   ```
-
-3. **TED Talk Sample** (~5 min - find a short one)
-   Search "TED talk 5 minutes" on YouTube
-
-## Manual API Test
-
-If frontend isn't working, test API directly:
-
-```bash
-# 1. Login to get token
-curl -X POST https://contextaware-backend.onrender.com/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "demoaccount@contextaware.com",
-    "password": "demo12345678910"
-  }'
-
-# 2. Upload lecture (replace YOUR_TOKEN)
-curl -X POST https://contextaware-backend.onrender.com/api/lectures \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "title": "API Test Video",
-    "videoUrl": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-    "uploadedBy": "demoaccount@contextaware.com",
-    "tags": ["test"]
-  }'
-
-# 3. Check lecture status (replace LECTURE_ID)
-curl https://contextaware-backend.onrender.com/api/lectures/LECTURE_ID \
-  -H "Authorization: Bearer YOUR_TOKEN"
+### Console Tab:
+Should show logs like:
+```
+XHR load event fired!
+Status: 201
+Response: {"lecture":{"id":"...","title":"...",...}}
+Parsed response: {lecture: {...}}
+Upload completed successfully! {lecture: {...}}
+Navigating to lecture: abc123xyz
 ```
 
-## Rollback Plan
+## Troubleshooting
 
-If YouTube processing fails completely:
+### Upload Stuck on "Uploading"
+**Symptoms**: Progress bar at 100%, button says "Uploading 100%...", but doesn't navigate
 
-1. **Disable auto-trigger temporarily:**
-   ```javascript
-   // In lectures.js POST route, comment out:
-   // processLecture(lectureId).catch(...)
-   ```
+**Possible Causes**:
+1. ✅ **MOST LIKELY**: Vercel hasn't deployed latest code OR browser cache
+2. XHR load event not firing (CORS issue)
+3. Response JSON structure doesn't match expected format
+4. JavaScript error preventing navigation
 
-2. **Use manual processing endpoint:**
-   ```bash
-   POST /api/processing/lecture/:id
-   ```
+**Solutions (in order)**:
+1. **Hard refresh**: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
+2. **Check Vercel deployment**: Verify commit `ff696d9` is deployed
+3. **Clear cache**: DevTools → Application tab → Clear site data
+4. **Check console**: Look for errors in Console tab
+5. **Check Network response**: Verify response structure matches expected format
 
-3. **Test with direct audio files:**
-   - Upload MP3 files directly (implement file upload)
-   - Skip YouTube processing for now
+### File Upload Fails Immediately
+**Symptoms**: Error toast appears right away
 
-## Production Monitoring
+**Possible Causes**:
+- File too large (>500MB)
+- Invalid file type
+- Network error
+- Backend error
 
-### First 24 Hours
-- Monitor Render logs continuously
-- Check first 5-10 uploads manually
-- Note any error patterns
-- Watch Render memory/CPU usage
+**Solutions**:
+1. Check file size (max 500MB)
+2. Check file type (MP4, MOV, AVI, WebM, OGG, MP3, WAV, M4A only)
+3. Check Network tab for error details
+4. Check backend logs on Render
 
-### Metrics to Track
-- Upload success rate
-- Average processing time by video length
-- Error rate and types
-- Render resource usage
-- User feedback on transcript quality
+### YouTube URL Processing
+**Status**: YouTube downloads are currently blocked by bot detection
 
-## Support Contacts
-- Render Dashboard: https://dashboard.render.com
-- Groq API Status: Check API key usage
-- Firebase Console: Check Firestore writes
+**Error**: "Sign in to confirm you're not a bot"
 
-## Next Steps After Testing
+**Why**: Render's servers are detected as bots by YouTube
 
-1. **If successful:**
-   - Monitor for 24 hours
-   - Gather user feedback
-   - Optimize processing speed
-   - Add progress indicators to frontend
+**Current Behavior**: 
+- URL submission still works
+- Lecture is created in database
+- Processing starts but fails at download step
+- User sees error in lecture detail page
 
-2. **If issues found:**
-   - Check YOUTUBE_PROCESSING.md troubleshooting section
-   - Review Render logs in detail
-   - Test yt-dlp installation manually
-   - Consider fallback options
+**Recommended**: Use file upload instead
+
+## File Upload Details
+
+### Supported Formats:
+- **Video**: MP4, MOV, AVI, WebM, OGG
+- **Audio**: MP3, WAV, M4A
+
+### Size Limits:
+- **Max file size**: 500MB
+- **Backend limit**: 50MB body parser (can be increased if needed)
+
+### Storage:
+- Files stored on Render's ephemeral filesystem
+- Path: `/opt/render/project/src/backend/uploads/`
+- Files persist until Render restarts (typically daily for free tier)
+- Consider moving to cloud storage (S3, GCS, etc.) for production
+
+## Debug Console Logs Explained
+
+When you upload a file, you should see these console logs in order:
+
+1. **`XHR load event fired!`** - XHR successfully received response from server
+2. **`Status: 201`** - Server returned 201 Created (success)
+3. **`Response: {...}`** - Raw JSON text from server
+4. **`Parsed response: {...}`** - JavaScript object after parsing JSON
+5. **`Upload completed successfully! {...}`** - Promise resolved with response
+6. **`Navigating to lecture: abc123xyz`** - About to navigate to lecture detail page
+
+**If you DON'T see these logs**, it means:
+- Vercel hasn't deployed the new code yet (wait and hard refresh)
+- Browser is using cached old code (hard refresh)
+- XHR request isn't completing (check Network tab)
+- CORS or network error preventing load event
+
+## Next Steps
+
+1. ✅ Pushed debugging code (commit `ff696d9`)
+2. ⏳ **YOU ARE HERE** → Wait for Vercel deployment
+3. 🔄 Hard refresh browser (Ctrl+Shift+R)
+4. 🧪 Try uploading with Console tab open
+5. 📊 Check console logs to see where it's failing
+6. 🐛 Based on logs, we'll know exactly what to fix
