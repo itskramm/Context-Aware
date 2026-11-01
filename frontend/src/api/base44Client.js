@@ -188,6 +188,102 @@ class Base44Client {
     dashboard: () => this.get('/analytics/dashboard'),
     activity: (params) => this.get('/analytics/activity', params),
   };
+
+  // Functions methods (cloud/edge functions)
+  functions = {
+    invoke: async (functionName, params) => {
+      return this.post(`/functions/${functionName}`, params);
+    },
+  };
+
+  // Legacy entities wrapper for backward compatibility
+  entities = {
+    Lecture: {
+      list: async (sort = '-created_date', limit = 50) => {
+        const response = await this.lectures.list({ sort, limit });
+        return response.lectures || response;
+      },
+      filter: async (filters, sort = '-created_date', limit = 50) => {
+        const params = { ...filters, sort, limit };
+        const response = await this.lectures.list(params);
+        return response.lectures || response;
+      },
+      get: async (id) => {
+        return this.lectures.get(id);
+      },
+      create: (data) => this.lectures.create(data),
+      update: (id, data) => this.lectures.update(id, data),
+      delete: (id) => this.lectures.delete(id),
+    },
+    Digest: {
+      list: async (sort = '-created_date', limit = 50) => {
+        const response = await this.digests.list({ sort, limit });
+        return response.digests || response;
+      },
+      filter: async (filters, sort = '-created_date', limit = 50) => {
+        const params = { ...filters, sort, limit };
+        const response = await this.digests.list(params);
+        return response.digests || response;
+      },
+      get: async (id) => {
+        return this.digests.get(id);
+      },
+      create: (data) => this.digests.create(data),
+      update: (id, data) => this.digests.update(id, data),
+      delete: (id) => this.digests.delete(id),
+    },
+    DigestSegment: {
+      filter: async (filters, sort = 'start_time', limit = 100) => {
+        const params = { ...filters, sort, limit };
+        try {
+          return this.get('/digest-segments', params);
+        } catch (error) {
+          console.warn('DigestSegment.filter not implemented:', error);
+          return [];
+        }
+      },
+      deleteMany: async (filters) => {
+        try {
+          return this.post('/digest-segments/delete-many', filters);
+        } catch (error) {
+          console.warn('DigestSegment.deleteMany not implemented:', error);
+          return { deleted: 0 };
+        }
+      },
+    },
+    Transcript: {
+      filter: async (filters, sort = 'timestamp', limit = 500) => {
+        const params = { ...filters, sort, limit };
+        try {
+          return this.get('/transcripts', params);
+        } catch (error) {
+          console.warn('Transcript.filter not implemented:', error);
+          return [];
+        }
+      },
+    },
+    Topic: {
+      filter: async (filters, sort = 'start_time', limit = 100) => {
+        const params = { ...filters, sort, limit };
+        try {
+          return this.get('/topics', params);
+        } catch (error) {
+          console.warn('Topic.filter not implemented:', error);
+          return [];
+        }
+      },
+    },
+    UserInteraction: {
+      create: async (data) => {
+        try {
+          return this.post('/interactions', data);
+        } catch (error) {
+          console.warn('UserInteraction.create not implemented:', error);
+          return { success: false };
+        }
+      },
+    },
+  };
 }
 
 // Create and export a singleton instance
