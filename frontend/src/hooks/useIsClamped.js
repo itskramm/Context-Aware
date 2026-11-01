@@ -22,3 +22,5 @@ export function useIsClamped() {
 
   return [ref, isClamped]
 }
+
+export default useIsClamped
