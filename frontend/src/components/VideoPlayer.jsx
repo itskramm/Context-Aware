@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useImperativeHandle, useState, forwardRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Film } from "lucide-react";
-import YouTubePlayer from "@/components/YouTubePlayer";
+import YouTubePlayer from "@/components/YoutubePlayer";
 import { getYoutubeId } from "@/lib/lectureUtils";
 
 // Chooses between a native <video> player (for uploaded files) and a YouTube
