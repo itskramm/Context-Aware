@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 
@@ -33,3 +34,9 @@ export default function AuthLayout({ children, title, subtitle }) {
     </div>
   );
 }
+
+AuthLayout.propTypes = {
+  children: PropTypes.node.isRequired,
+  title: PropTypes.string,
+  subtitle: PropTypes.string
+};

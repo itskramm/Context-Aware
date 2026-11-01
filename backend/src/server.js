@@ -7,6 +7,7 @@ import { initializeFirebase } from './config/database.js';
 import authRoutes from './routes/auth.js';
 import lectureRoutes from './routes/lectures.js';
 import digestRoutes from './routes/digests.js';
+import processingRoutes from './routes/processing.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/lectures', lectureRoutes);
 app.use('/api/digests', digestRoutes);
+app.use('/api/processing', processingRoutes);
 
 // 404 handler
 app.use((req, res) => {
