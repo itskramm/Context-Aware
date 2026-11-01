@@ -201,6 +201,12 @@ export default function UploadLecture() {
         xhr.addEventListener('abort', () => {
           reject(new Error('Upload cancelled'));
         });
+
+        // Set timeout to 2 minutes
+        xhr.timeout = 120000;
+        xhr.addEventListener('timeout', () => {
+          reject(new Error('Upload timed out'));
+        });
       });
 
       // Start upload
@@ -216,15 +222,14 @@ export default function UploadLecture() {
       const response = await uploadPromise;
 
       toast({
-        title: 'Success!',
-        description: 'File uploaded successfully. Processing will begin shortly.',
+        title: 'Upload successful!',
+        description: 'Your file has been uploaded and processing will begin shortly.',
       });
 
-      // Navigate to the lecture detail page
-      if (response.lecture && response.lecture.id) {
-        navigate(`/lectures/${response.lecture.id}`);
-      } else if (response.id) {
-        navigate(`/lectures/${response.id}`);
+      // Navigate immediately - don't wait for processing
+      const lectureId = response.lecture?.id || response.id;
+      if (lectureId) {
+        navigate(`/lectures/${lectureId}`);
       } else {
         navigate('/lectures');
       }
