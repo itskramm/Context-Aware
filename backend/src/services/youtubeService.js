@@ -1,4 +1,4 @@
-import ytdl from '@distube/ytdl-core';
+import * as ytdl from '@distube/ytdl-core';
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
@@ -33,7 +33,7 @@ export async function downloadYouTubeAudio(youtubeUrl) {
     console.log(`Video: ${info.videoDetails.title} (${info.videoDetails.lengthSeconds}s)`);
     
     // Download audio only (highest quality)
-    const audioStream = ytdl(youtubeUrl, {
+    const audioStream = ytdl.default(youtubeUrl, {
       quality: 'highestaudio',
       filter: 'audioonly'
     });
