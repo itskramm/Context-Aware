@@ -22,13 +22,13 @@ import MyLectures from '@/pages/MyLectures';
 import LectureDetails from '@/pages/LectureDetails';
 import UploadLecture from '@/pages/UploadLecture';
 import GenerateDigest from '@/pages/GenerateDigest';
-import MyDigests from '@/pages/MyDigests';
-import DigestResults from '@/pages/DigestResults';
+import MyDigests from '@/pages/MyDigest';
+import DigestResults from '@/pages/DigestResult';
 import SearchPage from '@/pages/SearchPage';
-import Profile from '@/pages/Profile';
+import Profile from '@/pages/Landing';
 import Settings from '@/pages/Settings';
 import UserManagement from '@/pages/UserManagement';
-import AdminPanel from '@/pages/AdminPanel';
+import AdminPanel from '@/pages/Adminpanel';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
