@@ -51,6 +51,9 @@ export const STATUS_LABELS = {
   preparing_index: "Indexing",
   ready: "Ready",
   failed: "Failed",
+  pending: "Pending",
+  processing: "Processing",
+  completed: "Completed",
 };
 
 export const STATUS_STYLES = {
@@ -62,6 +65,9 @@ export const STATUS_STYLES = {
   preparing_index: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
   ready: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
   failed: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  pending: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  completed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
 };
 
 export const PURPOSE_LABELS = {
@@ -71,6 +77,10 @@ export const PURPOSE_LABELS = {
   general_review: "General review",
   specific_topic: "Specific topic",
   other: "Other",
+  study: "Study",
+  review: "Review",
+  reference: "Reference",
+  research: "Research",
 };
 
 export const DEPTH_LABELS = {
@@ -143,87 +153,37 @@ export function captureVideoThumbnail(file, seekTime = 1) {
     video.onseeked = () => {
       try {
         canvas.width = video.videoWidth || 480;
-/**
- * Generate thumbnail URL for YouTube video
- * @param {string} videoId - YouTube video ID
- * @param {string} quality - Thumbnail quality (default, medium, high, maxres)
- * @returns {string} Thumbnail URL
- */
-export function getYouTubeThumbnail(videoId, quality = "high") {
-  const qualities = {
-    default: "default",
-    medium: "mqdefault",
-    high: "hqdefault",
-    maxres: "maxresdefault",
-  }
-  
-  return `https://img.youtube.com/vi/${videoId}/${qualities[quality] || "hqdefault"}.jpg`
+        canvas.height = video.videoHeight || 360;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      } catch {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      }
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    video.src = url;
+  });
 }
 
-// Additional utility exports
-export const STATUS_LABELS = {
-  pending: "Pending",
-  processing: "Processing",
-  completed: "Completed",
-  failed: "Failed",
-};
-
-export const STATUS_STYLES = {
-  pending: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
-  processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
-  completed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  failed: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-};
-
-export const PURPOSE_LABELS = {
-  study: "Study",
-  review: "Review",
-  reference: "Reference",
-  research: "Research",
-};
-
-export function compactDuration(seconds) {
-  if (!seconds || seconds < 0) return "0m";
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-export function relativeDate(date) {
-  return formatRelativeTime(date);
-}
-
+// Extract YouTube video ID from various URL formats
 export function getYoutubeId(url) {
-  return extractYouTubeId(url);
-}
-
-export function isYoutubeUrl(url) {
-  return isYouTubeUrl(url);
-}
-
-export default {
-  formatDuration,
-  formatFileSize,
-  extractYouTubeId,
-  isYouTubeUrl,
-  validateLectureFile,
-  getLectureStatusColor,
-  formatRelativeTime,
-  getYouTubeThumbnail,
-  STATUS_LABELS,
-  STATUS_STYLES,
-  PURPOSE_LABELS,
-  compactDuration,
-  relativeDate,
-  getYoutubeId,
-  isYoutubeUrl,
-}     if (u.pathname === "/watch") return u.searchParams.get("v");
+  if (!url) return null;
+  try {
+    const u = new URL(url.trim());
+    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
+      if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0];
+      if (u.pathname === "/watch") return u.searchParams.get("v");
       const m = u.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/);
       if (m) return m[2];
     }
   } catch {
-    // Not a valid URL — fall through.
+    // Not a valid URL
   }
   return null;
 }
@@ -234,6 +194,16 @@ export function isYoutubeUrl(url) {
 
 export function youtubeThumbnail(videoId) {
   return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
+}
+
+export function getYouTubeThumbnail(videoId, quality = "high") {
+  const qualities = {
+    default: "default",
+    medium: "mqdefault",
+    high: "hqdefault",
+    maxres: "maxresdefault",
+  };
+  return `https://img.youtube.com/vi/${videoId}/${qualities[quality] || "hqdefault"}.jpg`;
 }
 
 export function relativeDate(dateStr) {
@@ -248,3 +218,28 @@ export function relativeDate(dateStr) {
   if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? "" : "s"} ago`;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
+
+export default {
+  formatDuration,
+  compactDuration,
+  PROCESSING_STAGES,
+  STAGE_KEYS,
+  stageIndex,
+  stageProgress,
+  STATUS_LABELS,
+  STATUS_STYLES,
+  PURPOSE_LABELS,
+  DEPTH_LABELS,
+  SUPPORTED_VIDEO_TYPES,
+  MAX_FILE_SIZE_MB,
+  MAX_FILE_SIZE_BYTES,
+  formatFileSize,
+  isValidVideoFile,
+  getVideoMeta,
+  captureVideoThumbnail,
+  getYoutubeId,
+  isYoutubeUrl,
+  youtubeThumbnail,
+  getYouTubeThumbnail,
+  relativeDate,
+};
