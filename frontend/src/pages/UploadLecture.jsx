@@ -16,6 +16,7 @@ export default function UploadLecture() {
   const [loading, setLoading] = useState(false);
   const [uploadMode, setUploadMode] = useState('url'); // 'url' or 'file'
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Form states
   const [title, setTitle] = useState('');
@@ -24,9 +25,8 @@ export default function UploadLecture() {
   const [purpose, setPurpose] = useState('general');
   const [file, setFile] = useState(null);
 
-  const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
+  const validateFile = (selectedFile) => {
+    if (!selectedFile) return null;
 
     // Check file size (max 500MB)
     const maxSize = 500 * 1024 * 1024; // 500MB in bytes
@@ -36,21 +36,60 @@ export default function UploadLecture() {
         description: 'Maximum file size is 500MB',
         variant: 'destructive'
       });
-      return;
+      return null;
     }
 
     // Check file type
-    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg', 'audio/mpeg', 'audio/wav', 'audio/mp4'];
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg', 'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a'];
     if (!allowedTypes.includes(selectedFile.type)) {
       toast({
         title: 'Invalid file type',
         description: 'Please upload a video or audio file (MP4, MOV, AVI, WebM, OGG, MP3, WAV, M4A)',
         variant: 'destructive'
       });
-      return;
+      return null;
     }
 
-    setFile(selectedFile);
+    return selectedFile;
+  };
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    const validFile = validateFile(selectedFile);
+    if (validFile) {
+      setFile(validFile);
+    }
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      const validFile = validateFile(droppedFiles[0]);
+      if (validFile) {
+        setFile(validFile);
+      }
+    }
   };
 
   const handleUrlSubmit = async (e) => {
@@ -273,18 +312,32 @@ export default function UploadLecture() {
                   </Button>
                 </div>
               ) : (
-                <label className="border-2 border-dashed border-border rounded-lg p-12 text-center bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer block">
+                <label
+                  className={`border-2 border-dashed rounded-lg p-12 text-center transition-all cursor-pointer block ${
+                    isDragging
+                      ? 'border-primary bg-primary/10 scale-[1.02]'
+                      : 'border-border bg-muted/20 hover:bg-muted/30'
+                  }`}
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     accept="video/*,audio/*"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-8 h-8" />
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors ${
+                    isDragging ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
+                  }`}>
+                    <Upload className={`w-8 h-8 transition-transform ${isDragging ? 'scale-110' : ''}`} />
                   </div>
-                  <p className="text-lg font-semibold mb-2">Click to upload your video</p>
-                  <p className="text-sm text-muted-foreground mb-4">or drag and drop</p>
+                  <p className="text-lg font-semibold mb-2">
+                    {isDragging ? 'Drop your file here' : 'Drag and drop your video here'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">or click to browse files</p>
                   <p className="text-xs text-muted-foreground">Supported: MP4, MOV, AVI, WebM, OGG, MP3, WAV · Max 500MB</p>
                 </label>
               )}
