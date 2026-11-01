@@ -25,6 +25,8 @@ const getAppParams = () => {
 		token: getAccessToken(),
 		functionsVersion: import.meta.env.VITE_BASE44_FUNCTIONS_VERSION,
 		appBaseUrl: import.meta.env.VITE_BASE44_APP_BASE_URL,
+		TOKEN_KEY: 'auth_token',
+		USER_KEY: 'user',
 	}
 }
 

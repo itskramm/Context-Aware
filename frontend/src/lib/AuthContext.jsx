@@ -7,11 +7,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
     // Check for existing session on mount
-    const storedToken = localStorage.getItem(APP_PARAMS.TOKEN_KEY)
-    const storedUser = localStorage.getItem(APP_PARAMS.USER_KEY)
+    const storedToken = localStorage.getItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
+    const storedUser = localStorage.getItem(APP_PARAMS.USER_KEY || 'user')
 
     if (storedToken && storedUser) {
       try {
@@ -23,27 +25,36 @@ export function AuthProvider({ children }) {
     }
     
     setLoading(false)
+    setAuthChecked(true)
   }, [])
+
+  const checkUserAuth = async () => {
+    if (authChecked) return;
+    setAuthChecked(true);
+  }
 
   const login = (userData, authToken) => {
     setUser(userData)
     setToken(authToken)
-    localStorage.setItem(APP_PARAMS.TOKEN_KEY, authToken)
-    localStorage.setItem(APP_PARAMS.USER_KEY, JSON.stringify(userData))
+    localStorage.setItem(APP_PARAMS.TOKEN_KEY || 'auth_token', authToken)
+    localStorage.setItem(APP_PARAMS.USER_KEY || 'user', JSON.stringify(userData))
+    setAuthError(null)
   }
 
   const logout = () => {
     setUser(null)
     setToken(null)
-    localStorage.removeItem(APP_PARAMS.TOKEN_KEY)
-    localStorage.removeItem(APP_PARAMS.USER_KEY)
+    localStorage.removeItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
+    localStorage.removeItem(APP_PARAMS.USER_KEY || 'user')
+    localStorage.removeItem('token')
+    localStorage.removeItem('base44_access_token')
     // Component calling logout should handle navigation
     window.location.href = '/login'
   }
 
   const updateUser = (userData) => {
     setUser(userData)
-    localStorage.setItem(APP_PARAMS.USER_KEY, JSON.stringify(userData))
+    localStorage.setItem(APP_PARAMS.USER_KEY || 'user', JSON.stringify(userData))
   }
 
   const isAuthenticated = !!token && !!user
@@ -61,6 +72,9 @@ export function AuthProvider({ children }) {
     token,
     loading,
     isAuthenticated,
+    authChecked,
+    authError,
+    checkUserAuth,
     login,
     logout,
     updateUser,
@@ -69,7 +83,6 @@ export function AuthProvider({ children }) {
     // Compatibility properties for components expecting these
     isLoadingAuth: loading,
     isLoadingPublicSettings: false,
-    authError: null,
     navigateToLogin: () => { window.location.href = '/login' },
   }
 

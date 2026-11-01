@@ -106,9 +106,28 @@ class Base44Client {
 
   // Authentication methods
   auth = {
-    login: (credentials) => this.post('/auth/login', credentials),
-    register: (userData) => this.post('/auth/register', userData),
-    logout: () => this.post('/auth/logout'),
+    login: async (credentials) => {
+      const response = await this.post('/auth/login', credentials);
+      if (response.token) {
+        this.setToken(response.token);
+      }
+      return response;
+    },
+    loginViaEmailPassword: async (email, password) => {
+      const response = await this.auth.login({ email, password });
+      return response;
+    },
+    register: async (userData) => {
+      const response = await this.post('/auth/register', userData);
+      if (response.token) {
+        this.setToken(response.token);
+      }
+      return response;
+    },
+    logout: () => {
+      this.setToken(null);
+      return this.post('/auth/logout');
+    },
     forgotPassword: (email) => this.post('/auth/forgot-password', { email }),
     resetPassword: (data) => this.post('/auth/reset-password', data),
     verifyOtp: (data) => this.post('/auth/verify-otp', data),

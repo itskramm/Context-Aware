@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,8 @@ const readLockout = (email) => {
 };
 
 export default function Login() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const rememberedEmail = localStorage.getItem("remembered_email") || "";
   const [email, setEmail] = useState(rememberedEmail);
   const [remember, setRemember] = useState(!!rememberedEmail);
@@ -78,17 +81,24 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
+      const response = await base44.auth.loginViaEmailPassword(email, password);
       localStorage.removeItem(key);
       if (remember) localStorage.setItem("remembered_email", email);
       else localStorage.removeItem("remembered_email");
+      
       // Record the just-used password so it can't be reused on a later reset.
       try {
         await recordPasswordHash(email, password);
       } catch (err) {
         console.error("Could not record password history", err);
       }
-      window.location.href = returnTo === "/" ? "/dashboard" : returnTo;
+      
+      // Update auth context
+      login(response.user, response.token);
+      
+      // Navigate using React Router
+      const destination = returnTo === "/" ? "/dashboard" : returnTo;
+      navigate(destination);
     } catch (err) {
       const attempts = (lock && lock.until > Date.now() ? lock.attempts : 0) + 1;
       if (attempts >= MAX_ATTEMPTS) {
