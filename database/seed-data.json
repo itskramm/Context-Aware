@@ -1,0 +1,151 @@
+{
+  "users": [
+    {
+      "id": "admin-user-1",
+      "email": "admin@contextaware.com",
+      "name": "System Administrator",
+      "role": "Super Admin",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=System+Admin",
+        "bio": "Platform administrator",
+        "accessType": "Enterprise"
+      },
+      "stats": {
+        "lecturesUploaded": 0,
+        "digestsGenerated": 0,
+        "totalTimeSaved": 0
+      },
+      "preferences": {
+        "emailNotifications": true,
+        "theme": "light",
+        "language": "en"
+      }
+    },
+    {
+      "id": "teacher-user-1",
+      "email": "teacher@example.com",
+      "name": "Dr. Jane Smith",
+      "role": "Teacher",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=Jane+Smith",
+        "bio": "Computer Science Professor",
+        "phoneNumber": "+1234567890",
+        "location": "University Campus",
+        "accessType": "Premium"
+      },
+      "stats": {
+        "lecturesUploaded": 0,
+        "digestsGenerated": 0,
+        "totalTimeSaved": 0
+      },
+      "preferences": {
+        "emailNotifications": true,
+        "theme": "light",
+        "language": "en"
+      }
+    },
+    {
+      "id": "student-user-1",
+      "email": "student@example.com",
+      "name": "John Doe",
+      "role": "Student",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=John+Doe",
+        "bio": "CS Student, Class of 2025",
+        "phoneNumber": "+1987654321",
+        "dateOfBirth": "2000-01-01",
+        "accessType": "Standard"
+      },
+      "stats": {
+        "lecturesUploaded": 0,
+        "digestsGenerated": 0,
+        "totalTimeSaved": 0
+      },
+      "preferences": {
+        "emailNotifications": true,
+        "theme": "dark",
+        "language": "en"
+      }
+    }
+  ],
+  "lectures": [
+    {
+      "id": "lecture-sample-1",
+      "title": "Introduction to Machine Learning",
+      "description": "This lecture covers the fundamentals of machine learning, including supervised and unsupervised learning, basic algorithms, and practical applications.",
+      "instructorName": "Dr. Jane Smith",
+      "courseCode": "CS401",
+      "videoUrl": "https://www.youtube.com/watch?v=ukzFI9rgwfU",
+      "videoType": "youtube",
+      "youtubeId": "ukzFI9rgwfU",
+      "duration": 3600,
+      "thumbnail": "https://img.youtube.com/vi/ukzFI9rgwfU/maxresdefault.jpg",
+      "transcript": [],
+      "status": "completed",
+      "uploadedBy": "teacher-user-1",
+      "views": 0,
+      "digestCount": 0,
+      "tags": ["machine-learning", "ai", "cs401", "introduction"],
+      "visibility": "public",
+      "allowDownload": true,
+      "contentWarning": false
+    },
+    {
+      "id": "lecture-sample-2",
+      "title": "Data Structures: Binary Trees",
+      "description": "Deep dive into binary tree data structures, traversal algorithms, and common applications.",
+      "instructorName": "Dr. Jane Smith",
+      "courseCode": "CS201",
+      "videoUrl": "https://www.youtube.com/watch?v=fAAZixBzIAI",
+      "videoType": "youtube",
+      "youtubeId": "fAAZixBzIAI",
+      "duration": 2700,
+      "thumbnail": "https://img.youtube.com/vi/fAAZixBzIAI/maxresdefault.jpg",
+      "transcript": [],
+      "status": "completed",
+      "uploadedBy": "teacher-user-1",
+      "views": 0,
+      "digestCount": 0,
+      "tags": ["data-structures", "trees", "cs201", "algorithms"],
+      "visibility": "public",
+      "allowDownload": true,
+      "contentWarning": false
+    }
+  ],
+  "digests": [
+    {
+      "id": "digest-sample-1",
+      "lectureId": "lecture-sample-1",
+      "userId": "student-user-1",
+      "title": "ML Basics Review",
+      "purpose": "Review",
+      "customPurpose": null,
+      "query": "What are the main differences between supervised and unsupervised learning?",
+      "segments": [
+        {
+          "start": 120,
+          "end": 300,
+          "text": "Supervised learning uses labeled data where the algorithm learns from examples with known outcomes...",
+          "relevanceScore": 0.95,
+          "reason": "Directly explains supervised vs unsupervised learning"
+        },
+        {
+          "start": 450,
+          "end": 600,
+          "text": "Unsupervised learning, on the other hand, works with unlabeled data to find patterns...",
+          "relevanceScore": 0.93,
+          "reason": "Continues the comparison of learning types"
+        }
+      ],
+      "totalDuration": 330,
+      "originalDuration": 3600,
+      "estimatedTimeSaved": 3270,
+      "segmentCount": 2,
+      "status": "completed",
+      "viewCount": 0,
+      "model": "gpt-4",
+      "processingTime": 8.5,
+      "generationStage": "completed"
+    }
+  ]
+}
