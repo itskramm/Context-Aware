@@ -95,7 +95,7 @@ export default function MyLectures() {
   }, [lectures, search, course, sort]);
 
   return (
-    <div className="p-6 sm:p-8 max-w-6xl mx-auto">
+    <div className="p-6 sm:p-8">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Lectures</h1>

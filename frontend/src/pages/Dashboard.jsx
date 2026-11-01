@@ -150,7 +150,7 @@ export default function Dashboard() {
   const continueItem = recentDigests[0];
 
   return (
-    <div className="p-6 sm:p-8 max-w-6xl mx-auto">
+    <div className="p-6 sm:p-8">
       {/* Greeting */}
       <div className="mb-8 rounded-3xl border border-border gradient-brand-soft p-6 sm:p-7">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Good day, {firstName}</h1>

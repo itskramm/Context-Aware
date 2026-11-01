@@ -2,7 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { getAccessType } from "@/lib/authValidations";
-import { Mail, Phone, Calendar, MapPin, User as UserIcon, Users, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { Mail, Phone, Calendar, MapPin, User as UserIcon, Users, ShieldCheck, LayoutDashboard, BookOpen } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 function ProfileRow({ icon: Icon, label, value }) {
   return (
@@ -38,80 +39,82 @@ export default function Landing() {
   const accessType = getAccessType(user);
   const data = user?.data || {};
   const name = user?.name || data.name || user?.full_name || "Welcome";
+  const firstName = name.split(' ')[0];
   const username = user?.username || data.username || user?.email || "";
   const mobile = user?.mobile_number || data.mobile_number || "";
   const birthday = user?.birthday || data.birthday || "";
   const address = user?.address || data.address || "";
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {name}</h1>
-        <p className="text-muted-foreground mt-1">
-          You are signed in as{" "}
-          <span className="font-medium text-foreground">{accessType}</span>.
-        </p>
-      </section>
-
-      <section className="grid lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-lg font-semibold mb-2">Your account</h2>
-          <ProfileRow icon={UserIcon} label="Full Name" value={name} />
-          <ProfileRow icon={Mail} label="Email" value={user?.email} />
-          <ProfileRow icon={UserIcon} label="Username" value={username} />
-          <ProfileRow icon={Phone} label="Mobile Number" value={mobile} />
-          <ProfileRow icon={Calendar} label="Birthday" value={birthday} />
-          <ProfileRow icon={MapPin} label="Address" value={address} />
+    <div className="p-6 sm:p-8 max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight mb-8">Profile</h1>
+        
+        {/* Profile Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="text-3xl font-bold text-primary">
+              {firstName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">{firstName}</h2>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+          </div>
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Your access</h2>
-          {accessType === "Super Admin" && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <LinkCard
-                to="/users"
-                icon={Users}
-                title="User Management"
-                desc="Manage accounts, access types, and reset user passwords."
-              />
-              <LinkCard
-                to="/admin"
-                icon={ShieldCheck}
-                title="Admin Panel"
-                desc="View accounts and the system overview."
-              />
+      <div className="space-y-6">
+        {/* Account Information */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="font-semibold mb-4">Account information</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                <UserIcon className="w-3.5 h-3.5" /> Full name
+              </label>
+              <Input value={name} readOnly className="bg-muted/50" />
             </div>
-          )}
-          {accessType === "Admin" && (
-            <div className="grid sm:grid-cols-1 gap-4">
-              <LinkCard
-                to="/admin"
-                icon={ShieldCheck}
-                title="Admin Panel"
-                desc="View accounts and the system overview."
-              />
+
+            <div>
+              <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                <Mail className="w-3.5 h-3.5" /> Email
+              </label>
+              <Input value={user?.email || ''} readOnly className="bg-muted/50" />
+              <p className="text-xs text-muted-foreground mt-1">Email cannot be changed here.</p>
             </div>
-          )}
-          {accessType === "User" && (
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <LayoutDashboard className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-semibold">Standard user</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Your account details are shown here. Additional features become available as they are added to the app.
-                  </p>
-                </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                  <BookOpen className="w-3.5 h-3.5" /> Course / Program
+                </label>
+                <Input placeholder="e.g. BS Computer Science" className="bg-background" />
+              </div>
+              
+              <div>
+                <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                  <Calendar className="w-3.5 h-3.5" /> Birthday
+                </label>
+                <Input type="date" placeholder="mm/dd/yyyy" className="bg-background" />
               </div>
             </div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Access type is assigned to your account and cannot be changed from this page.
-          </p>
+
+            <div>
+              <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                <MapPin className="w-3.5 h-3.5" /> Address
+              </label>
+              <Input placeholder="alley 99 pateros metro manila" className="bg-background" />
+            </div>
+
+            <button className="w-full sm:w-auto px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors">
+              Save changes
+            </button>
+          </div>
         </div>
-      </section>
+
+      </div>
     </div>
   );
 }

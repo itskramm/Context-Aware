@@ -164,16 +164,14 @@ export default function GenerateDigest() {
   }
 
   return (
-    <div className="p-6 sm:p-8 max-w-2xl mx-auto">
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
+    <div className="p-6 sm:p-8 max-w-3xl mx-auto">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-2.5 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <Sparkles className="w-5 h-5" />
-          </div>
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Sparkles className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Create a personalized digest</h1>
         </div>
         <p className="text-muted-foreground">

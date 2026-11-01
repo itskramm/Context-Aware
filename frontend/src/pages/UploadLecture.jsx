@@ -102,25 +102,52 @@ export default function UploadLecture() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="p-6 sm:p-8 max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Upload Lecture</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Upload Lecture</h1>
         <p className="text-muted-foreground mt-2">
-          Add a new lecture to your library for processing and digest generation
+          Upload a recording or paste a YouTube link to analyze and generate digests.
         </p>
       </div>
 
+      {/* Warning banner */}
+      <div className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
+        <div className="flex gap-3">
+          <div className="text-amber-600 dark:text-amber-500 mt-0.5">⚠️</div>
+          <div>
+            <p className="font-semibold text-amber-900 dark:text-amber-200 text-sm">Upload study-related videos only</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+              Use lecture recordings, lessons, tutorials, or other course material. Music videos, news clips, vlogs, and entertainment content are not supported and won't produce useful transcripts or digests.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <Tabs value={uploadMode} onValueChange={setUploadMode} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 bg-muted">
+          <TabsTrigger value="file">
+            <Upload className="w-4 h-4 mr-2" />
+            Upload file
+          </TabsTrigger>
           <TabsTrigger value="url">
             <LinkIcon className="w-4 h-4 mr-2" />
-            URL
-          </TabsTrigger>
-          <TabsTrigger value="file" disabled>
-            <Upload className="w-4 h-4 mr-2" />
-            File Upload (Coming Soon)
+            Paste link
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="file" className="mt-6">
+          <div className="border-2 border-dashed border-border rounded-lg p-12 text-center bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer">
+            <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+              <Upload className="w-8 h-8" />
+            </div>
+            <p className="text-lg font-semibold mb-2">Drag and drop your video here</p>
+            <p className="text-sm text-muted-foreground mb-4">or click to browse files</p>
+            <p className="text-xs text-muted-foreground">Supported: MP4, MOV, AVI, WebM, OGG · Max 500MB</p>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            File upload requires additional storage configuration. Use the "Paste link" tab for now.
+          </p>
+        </TabsContent>
 
         <TabsContent value="url" className="mt-6">
           <form onSubmit={handleUrlSubmit} className="space-y-6">
@@ -203,28 +230,7 @@ export default function UploadLecture() {
           </form>
         </TabsContent>
 
-        <TabsContent value="file" className="mt-6">
-          <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
-            <Video className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-2">
-              File upload requires storage configuration
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Please use the URL tab to add lectures via video links
-            </p>
-          </div>
-        </TabsContent>
       </Tabs>
-
-      <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-        <h3 className="font-semibold text-sm mb-2">💡 Tips</h3>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          <li>• Use descriptive titles for better organization</li>
-          <li>• YouTube videos work best with public or unlisted visibility</li>
-          <li>• Processing time varies based on video length</li>
-          <li>• You'll be notified when processing is complete</li>
-        </ul>
-      </div>
     </div>
   );
 }
