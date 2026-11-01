@@ -121,7 +121,9 @@ router.post('/', async (req, res) => {
       tags,
       purpose: purpose || 'general',
       status: 'processing',
+      processing_status: 'processing', // Add frontend-compatible field
       uploadedAt: new Date().toISOString(),
+      created_date: new Date().toISOString(), // Add frontend-compatible field
       duration: 0,
       viewCount: 0
     };
@@ -145,6 +147,7 @@ router.post('/', async (req, res) => {
       // Update lecture status to failed
       db.collection('lectures').doc(lectureId).update({
         status: 'failed',
+        processing_status: 'failed',
         error: error.message,
         updatedAt: new Date().toISOString()
       }).catch(updateError => {
@@ -236,7 +239,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       tags: tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [],
       purpose: purpose || 'general',
       status: 'processing',
+      processing_status: 'processing', // Add frontend-compatible field
       uploadedAt: new Date().toISOString(),
+      created_date: new Date().toISOString(), // Add frontend-compatible field
       duration: 0,
       viewCount: 0,
       fileMetadata: {
@@ -264,6 +269,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       console.error(`Background processing failed for lecture ${lectureId}:`, error);
       db.collection('lectures').doc(lectureId).update({
         status: 'failed',
+        processing_status: 'failed',
         error: error.message,
         updatedAt: new Date().toISOString()
       }).catch(updateError => {

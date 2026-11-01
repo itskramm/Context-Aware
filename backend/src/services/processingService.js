@@ -24,6 +24,7 @@ export async function processLecture(lectureId) {
     // Update status to processing
     await lectureDoc.ref.update({ 
       status: 'processing',
+      processing_status: 'processing',
       processingStartedAt: new Date().toISOString()
     });
     
@@ -126,9 +127,10 @@ export async function processLecture(lectureId) {
     
     console.log('Digest saved:', digestRef.id);
     
-    // Update lecture status
+    // Update lecture status to ready (frontend expects "ready" not "completed")
     await lectureDoc.ref.update({ 
       status: 'completed',
+      processing_status: 'ready', // Frontend expects "ready"
       transcriptId: transcriptRef.id,
       digestId: digestRef.id,
       processingCompletedAt: new Date().toISOString()
@@ -157,6 +159,7 @@ export async function processLecture(lectureId) {
     try {
       await db.collection('lectures').doc(lectureId).update({ 
         status: 'failed',
+        processing_status: 'failed',
         error: error.message,
         processingFailedAt: new Date().toISOString()
       });
