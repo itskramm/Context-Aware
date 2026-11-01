@@ -2,15 +2,23 @@ import Groq from 'groq-sdk';
 import fs from 'fs';
 import path from 'path';
 
-// Initialize Groq only if API key is available
+// Lazy initialization - check API key only when actually used
 let groq = null;
-if (process.env.GROQ_API_KEY) {
-  groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY // Get free key at console.groq.com
-  });
-  console.log('✅ Groq API initialized');
-} else {
-  console.warn('⚠️  GROQ_API_KEY not set - transcription will not work');
+let groqInitialized = false;
+
+function getGroqClient() {
+  if (!groqInitialized) {
+    if (process.env.GROQ_API_KEY) {
+      groq = new Groq({
+        apiKey: process.env.GROQ_API_KEY // Get free key at console.groq.com
+      });
+      console.log('✅ Groq API initialized');
+    } else {
+      console.warn('⚠️  GROQ_API_KEY not set - transcription will not work');
+    }
+    groqInitialized = true;
+  }
+  return groq;
 }
 
 /**
@@ -21,6 +29,11 @@ if (process.env.GROQ_API_KEY) {
 export async function transcribeWithGroq(audioFilePath) {
   try {
     console.log('Transcribing with Groq Whisper (FREE)...');
+    
+    const groq = getGroqClient();
+    if (!groq) {
+      throw new Error('Groq API key not configured');
+    }
     
     const transcription = await groq.audio.transcriptions.create({
       file: fs.createReadStream(audioFilePath),

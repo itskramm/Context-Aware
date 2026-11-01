@@ -1,16 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST before any other imports
+dotenv.config();
+
 import { initializeFirebase } from './config/database.js';
 
-// Import routes
+// Import routes (after dotenv is loaded)
 import authRoutes from './routes/auth.js';
 import lectureRoutes from './routes/lectures.js';
 import digestRoutes from './routes/digests.js';
 import processingRoutes from './routes/processing.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

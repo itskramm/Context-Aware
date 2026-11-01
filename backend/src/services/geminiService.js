@@ -1,6 +1,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+// Lazy initialization - check API key only when actually used
+let genAI = null;
+let geminiInitialized = false;
+
+function getGeminiClient() {
+  if (!geminiInitialized) {
+    if (process.env.GOOGLE_AI_API_KEY) {
+      genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+      console.log('✅ Gemini API initialized');
+    } else {
+      console.warn('⚠️  GOOGLE_AI_API_KEY not set - summarization will not work');
+    }
+    geminiInitialized = true;
+  }
+  return genAI;
+}
 
 /**
  * Generate summary using Gemini Flash (FREE!)
@@ -10,6 +25,11 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 export async function generateSummary(transcript) {
   try {
     console.log('Generating summary with Gemini Flash...');
+    
+    const genAI = getGeminiClient();
+    if (!genAI) {
+      throw new Error('Gemini API key not configured');
+    }
     
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash' // Free tier: 15 requests/min
