@@ -155,6 +155,8 @@ export default function UploadLecture() {
     setUploadProgress(0);
 
     try {
+      console.log('Starting file upload...');
+      
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', file);
@@ -163,88 +165,74 @@ export default function UploadLecture() {
       formData.append('tags', tags);
       formData.append('purpose', purpose);
 
-      // Upload file to backend
-      const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(progress);
-        }
+      console.log('FormData created:', {
+        fileName: file.name,
+        fileSize: file.size,
+        title,
+        uploadedBy: user.id
       });
 
-      // Handle response
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.addEventListener('load', () => {
-          console.log('XHR load event fired!');
-          console.log('Status:', xhr.status);
-          console.log('Response:', xhr.responseText);
-          
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              console.log('Parsed response:', response);
-              resolve(response);
-            } catch (e) {
-              console.error('Failed to parse response:', e);
-              reject(new Error('Invalid response from server'));
-            }
-          } else {
-            try {
-              const error = JSON.parse(xhr.responseText);
-              reject(new Error(error.error || error.message || 'Upload failed'));
-            } catch (e) {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          console.error('XHR error event');
-          reject(new Error('Network error during upload'));
-        });
-
-        xhr.addEventListener('abort', () => {
-          console.error('XHR abort event');
-          reject(new Error('Upload cancelled'));
-        });
-
-        // Set timeout to 2 minutes
-        xhr.timeout = 120000;
-        xhr.addEventListener('timeout', () => {
-          console.error('XHR timeout event');
-          reject(new Error('Upload timed out'));
-        });
-      });
-
-      // Start upload
+      // Get API URL and token
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const token = localStorage.getItem('token');
+      const uploadUrl = `${apiUrl}/lectures/upload`;
       
-      xhr.open('POST', `${apiUrl}/lectures/upload`);
-      if (token) {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      }
-      xhr.send(formData);
+      console.log('Uploading to:', uploadUrl);
 
-      const response = await uploadPromise;
-      console.log('Upload completed successfully!', response);
+      // Use fetch with AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
 
-      toast({
-        title: 'Upload successful!',
-        description: 'Your file has been uploaded and processing will begin shortly.',
-      });
+      try {
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: formData,
+          signal: controller.signal
+        });
 
-      // Navigate immediately - don't wait for processing
-      const lectureId = response.lecture?.id || response.id;
-      console.log('Navigating to lecture:', lectureId);
-      
-      if (lectureId) {
-        navigate(`/lectures/${lectureId}`);
-      } else {
-        console.warn('No lecture ID in response, navigating to /lectures');
-        navigate('/lectures');
+        clearTimeout(timeoutId);
+
+        console.log('Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+          throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Upload successful! Response data:', data);
+
+        setUploadProgress(100);
+
+        toast({
+          title: 'Upload successful!',
+          description: 'Your file has been uploaded and processing will begin shortly.',
+        });
+
+        // Navigate immediately - don't wait for processing
+        const lectureId = data.lecture?.id || data.id;
+        console.log('Navigating to lecture:', lectureId);
+        
+        if (lectureId) {
+          navigate(`/lectures/${lectureId}`);
+        } else {
+          console.warn('No lecture ID in response, navigating to /lectures');
+          navigate('/lectures');
+        }
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Upload timed out after 2 minutes');
+        }
+        throw fetchError;
       }
 
     } catch (error) {
