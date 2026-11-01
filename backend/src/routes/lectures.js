@@ -1,8 +1,52 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'video/mp4',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/webm',
+      'video/ogg',
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp4',
+      'audio/x-m4a'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only video and audio files are allowed.'));
+    }
+  }
+});
 
 // Get all lectures
 router.get('/', async (req, res) => {
@@ -166,3 +210,73 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
+
+// Upload file endpoint
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { title, uploadedBy, tags, purpose } = req.body;
+
+    if (!title || !uploadedBy) {
+      // Cleanup uploaded file
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Title and uploadedBy are required' });
+    }
+
+    const db = getFirestore();
+    
+    // Create lecture with file path
+    const lectureData = {
+      title,
+      videoUrl: req.file.path, // Store local file path
+      uploadedBy,
+      tags: tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [],
+      purpose: purpose || 'general',
+      status: 'processing',
+      uploadedAt: new Date().toISOString(),
+      duration: 0,
+      viewCount: 0,
+      fileMetadata: {
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype
+      }
+    };
+
+    const lectureRef = await db.collection('lectures').add(lectureData);
+    const lectureId = lectureRef.id;
+
+    // Respond immediately
+    res.status(201).json({
+      message: 'File uploaded successfully and processing started',
+      lecture: {
+        id: lectureId,
+        ...lectureData
+      }
+    });
+
+    // Auto-trigger processing in background
+    console.log(`Starting background processing for uploaded file ${lectureId}...`);
+    processLecture(lectureId).catch(error => {
+      console.error(`Background processing failed for lecture ${lectureId}:`, error);
+      db.collection('lectures').doc(lectureId).update({
+        status: 'failed',
+        error: error.message,
+        updatedAt: new Date().toISOString()
+      }).catch(updateError => {
+        console.error('Failed to update lecture status:', updateError);
+      });
+    });
+
+  } catch (error) {
+    console.error('File upload error:', error);
+    // Cleanup uploaded file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Failed to upload file', details: error.message });
+  }
+});
