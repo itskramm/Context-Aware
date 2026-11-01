@@ -32,7 +32,7 @@ export async function generateSummary(transcript) {
     }
     
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash' // Free tier: 15 requests/min
+      model: 'gemini-1.5-flash-latest' // Use -latest suffix for v1beta
     });
 
     const prompt = `

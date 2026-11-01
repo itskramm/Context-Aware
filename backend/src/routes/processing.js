@@ -1,8 +1,7 @@
 import express from 'express';
 import { getFirestore } from '../config/database.js';
 import { extractAudio, getAudioDuration } from '../services/audioService.js';
-import { transcribeWithGroq } from '../services/groqService.js';
-import { generateSummary, generateQuestions } from '../services/geminiService.js';
+import { transcribeWithGroq, generateSummaryWithGroq, generateQuestionsWithGroq } from '../services/groqService.js';
 import fs from 'fs';
 
 const router = express.Router();
@@ -55,14 +54,14 @@ router.post('/lecture/:id', async (req, res) => {
     
     console.log('Transcript saved:', transcriptRef.id);
     
-    // Step 3: Generate summary with Gemini (FREE!)
-    console.log('Step 3: Generating summary with Gemini Flash (FREE)...');
-    const summary = await generateSummary(transcription.text);
+    // Step 3: Generate summary with Groq GPT-OSS-120B (FREE!)
+    console.log('Step 3: Generating summary with Groq GPT-OSS-120B (FREE)...');
+    const summary = await generateSummaryWithGroq(transcription.text);
     
     // Step 4: Generate questions (optional, FREE!)
     let questions = [];
     try {
-      questions = await generateQuestions(transcription.text);
+      questions = await generateQuestionsWithGroq(transcription.text);
     } catch (err) {
       console.log('Question generation skipped:', err.message);
     }
