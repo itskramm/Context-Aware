@@ -177,11 +177,17 @@ export default function UploadLecture() {
       // Handle response
       const uploadPromise = new Promise((resolve, reject) => {
         xhr.addEventListener('load', () => {
+          console.log('XHR load event fired!');
+          console.log('Status:', xhr.status);
+          console.log('Response:', xhr.responseText);
+          
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
+              console.log('Parsed response:', response);
               resolve(response);
             } catch (e) {
+              console.error('Failed to parse response:', e);
               reject(new Error('Invalid response from server'));
             }
           } else {
@@ -195,16 +201,19 @@ export default function UploadLecture() {
         });
 
         xhr.addEventListener('error', () => {
+          console.error('XHR error event');
           reject(new Error('Network error during upload'));
         });
 
         xhr.addEventListener('abort', () => {
+          console.error('XHR abort event');
           reject(new Error('Upload cancelled'));
         });
 
         // Set timeout to 2 minutes
         xhr.timeout = 120000;
         xhr.addEventListener('timeout', () => {
+          console.error('XHR timeout event');
           reject(new Error('Upload timed out'));
         });
       });
@@ -220,6 +229,7 @@ export default function UploadLecture() {
       xhr.send(formData);
 
       const response = await uploadPromise;
+      console.log('Upload completed successfully!', response);
 
       toast({
         title: 'Upload successful!',
@@ -228,9 +238,12 @@ export default function UploadLecture() {
 
       // Navigate immediately - don't wait for processing
       const lectureId = response.lecture?.id || response.id;
+      console.log('Navigating to lecture:', lectureId);
+      
       if (lectureId) {
         navigate(`/lectures/${lectureId}`);
       } else {
+        console.warn('No lecture ID in response, navigating to /lectures');
         navigate('/lectures');
       }
 
