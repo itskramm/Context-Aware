@@ -2,13 +2,38 @@ import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import { isYouTubeUrl, downloadYouTubeAudio, checkYtDlpInstalled } from './youtubeService.js';
 
 /**
- * Extract audio from video URL
- * @param {string} videoUrl - Direct video URL
+ * Extract audio from video URL (supports YouTube and direct URLs)
+ * @param {string} videoUrl - Video URL (YouTube or direct)
  * @returns {Promise<string>} - Path to extracted audio file
  */
 export async function extractAudio(videoUrl) {
+  // Check if it's a YouTube URL
+  if (isYouTubeUrl(videoUrl)) {
+    console.log('Detected YouTube URL, using yt-dlp...');
+    
+    // Check if yt-dlp is available
+    const hasYtDlp = await checkYtDlpInstalled();
+    if (!hasYtDlp) {
+      throw new Error('yt-dlp is not installed. Please install it to process YouTube videos.');
+    }
+    
+    return await downloadYouTubeAudio(videoUrl);
+  }
+  
+  // Otherwise, use direct download + ffmpeg extraction
+  console.log('Using direct download for non-YouTube URL...');
+  return await extractAudioDirect(videoUrl);
+}
+
+/**
+ * Extract audio from direct video URL
+ * @param {string} videoUrl - Direct video URL
+ * @returns {Promise<string>} - Path to extracted audio file
+ */
+async function extractAudioDirect(videoUrl) {
   const tempDir = path.join(process.cwd(), 'temp');
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });

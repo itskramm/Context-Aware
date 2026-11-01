@@ -1,5 +1,6 @@
 import express from 'express';
 import { getFirestore } from '../config/database.js';
+import { processLecture } from '../services/processing.js';
 
 const router = express.Router();
 
@@ -82,14 +83,31 @@ router.post('/', async (req, res) => {
     };
 
     const lectureRef = await db.collection('lectures').add(lectureData);
+    const lectureId = lectureRef.id;
 
+    // Respond immediately
     res.status(201).json({
-      message: 'Lecture created successfully',
+      message: 'Lecture created successfully and processing started',
       lecture: {
-        id: lectureRef.id,
+        id: lectureId,
         ...lectureData
       }
     });
+
+    // Auto-trigger processing in background (don't await)
+    console.log(`Starting background processing for lecture ${lectureId}...`);
+    processLecture(lectureId).catch(error => {
+      console.error(`Background processing failed for lecture ${lectureId}:`, error);
+      // Update lecture status to failed
+      db.collection('lectures').doc(lectureId).update({
+        status: 'failed',
+        error: error.message,
+        updatedAt: new Date().toISOString()
+      }).catch(updateError => {
+        console.error('Failed to update lecture status:', updateError);
+      });
+    });
+
   } catch (error) {
     console.error('Create lecture error:', error);
     res.status(500).json({ error: 'Failed to create lecture', details: error.message });
