@@ -28,6 +28,7 @@ export async function downloadYouTubeAudio(youtubeUrl) {
     console.log('Downloading YouTube audio with youtube-dl...');
     
     // Download audio only, convert to MP3
+    // Add user-agent to avoid bot detection
     await youtubedl(youtubeUrl, {
       extractAudio: true,
       audioFormat: 'mp3',
@@ -35,7 +36,14 @@ export async function downloadYouTubeAudio(youtubeUrl) {
       output: outputTemplate,
       noCheckCertificates: true,
       noWarnings: true,
-      preferFreeFormats: true
+      preferFreeFormats: true,
+      // Try to avoid bot detection
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      addHeader: ['User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'],
+      // Use IPv4 to avoid some YouTube blocks
+      forceIpv4: true,
+      // Bypass age gate
+      age Limit: 21
     });
     
     // Find the downloaded file
@@ -57,6 +65,12 @@ export async function downloadYouTubeAudio(youtubeUrl) {
     
   } catch (error) {
     console.error('YouTube download error:', error);
+    
+    // Check if it's a bot detection error
+    if (error.message && error.message.includes('Sign in to confirm')) {
+      throw new Error('YouTube is blocking automated downloads. Please try uploading an audio file directly, or try a different video URL. For production use, consider implementing file uploads or using YouTube\'s official API.');
+    }
+    
     // Cleanup any partial files
     try {
       const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`youtube-${timestamp}`));
