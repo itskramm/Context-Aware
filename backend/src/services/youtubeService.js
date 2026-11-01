@@ -1,25 +1,18 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import ytdl from '@distube/ytdl-core';
 import fs from 'fs';
 import path from 'path';
-
-const execPromise = promisify(exec);
+import { pipeline } from 'stream/promises';
 
 /**
- * Check if yt-dlp is installed
+ * Check if yt-dlp is installed (keeping for backward compatibility)
  */
 export async function checkYtDlpInstalled() {
-  try {
-    await execPromise('yt-dlp --version');
-    return true;
-  } catch (error) {
-    console.warn('yt-dlp not installed');
-    return false;
-  }
+  // Using Node.js package, always available
+  return true;
 }
 
 /**
- * Download YouTube video as audio using yt-dlp
+ * Download YouTube video as audio using ytdl-core
  * @param {string} youtubeUrl - YouTube video URL
  * @returns {Promise<string>} - Path to downloaded audio file
  */
@@ -30,50 +23,38 @@ export async function downloadYouTubeAudio(youtubeUrl) {
   }
 
   const timestamp = Date.now();
-  const outputTemplate = path.join(tempDir, `youtube-${timestamp}`);
+  const outputPath = path.join(tempDir, `youtube-${timestamp}.mp4`);
   
   try {
-    console.log('Downloading YouTube audio with yt-dlp...');
+    console.log('Downloading YouTube audio with ytdl-core...');
     
-    // Use yt-dlp to download audio only
-    // -x extracts audio, --audio-format converts to mp3
-    const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputTemplate}.%(ext)s" "${youtubeUrl}"`;
+    // Get video info first
+    const info = await ytdl.getInfo(youtubeUrl);
+    console.log(`Video: ${info.videoDetails.title} (${info.videoDetails.lengthSeconds}s)`);
     
-    const { stdout, stderr } = await execPromise(command, {
-      timeout: 300000, // 5 minutes
-      maxBuffer: 50 * 1024 * 1024 // 50MB buffer
+    // Download audio only (highest quality)
+    const audioStream = ytdl(youtubeUrl, {
+      quality: 'highestaudio',
+      filter: 'audioonly'
     });
     
-    console.log('yt-dlp output:', stdout);
-    if (stderr) console.log('yt-dlp stderr:', stderr);
+    // Save to file
+    const writeStream = fs.createWriteStream(outputPath);
+    await pipeline(audioStream, writeStream);
     
-    // The file should be named youtube-{timestamp}.mp3
-    const expectedPath = `${outputTemplate}.mp3`;
-    
-    // Check if file exists, or look for any file with our timestamp
-    let actualPath = expectedPath;
-    if (!fs.existsSync(expectedPath)) {
-      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`youtube-${timestamp}`));
-      if (files.length === 0) {
-        throw new Error('Downloaded file not found after yt-dlp execution');
-      }
-      actualPath = path.join(tempDir, files[0]);
-    }
-    
-    console.log('YouTube audio downloaded successfully:', actualPath);
-    return actualPath;
+    console.log('YouTube audio downloaded successfully:', outputPath);
+    return outputPath;
     
   } catch (error) {
     console.error('YouTube download error:', error);
-    // Cleanup any partial files
-    const partialFiles = fs.readdirSync(tempDir).filter(f => f.startsWith(`youtube-${timestamp}`));
-    partialFiles.forEach(file => {
+    // Cleanup on error
+    if (fs.existsSync(outputPath)) {
       try {
-        fs.unlinkSync(path.join(tempDir, file));
+        fs.unlinkSync(outputPath);
       } catch (e) {
         console.error('Failed to cleanup partial file:', e);
       }
-    });
+    }
     throw new Error(`Failed to download YouTube audio: ${error.message}`);
   }
 }
