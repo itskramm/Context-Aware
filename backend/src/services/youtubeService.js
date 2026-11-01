@@ -1,7 +1,6 @@
-import * as ytdl from '@distube/ytdl-core';
+import youtubedl from 'youtube-dl-exec';
 import fs from 'fs';
 import path from 'path';
-import { pipeline } from 'stream/promises';
 
 /**
  * Check if yt-dlp is installed (keeping for backward compatibility)
@@ -12,7 +11,7 @@ export async function checkYtDlpInstalled() {
 }
 
 /**
- * Download YouTube video as audio using ytdl-core
+ * Download YouTube video as audio using youtube-dl-exec
  * @param {string} youtubeUrl - YouTube video URL
  * @returns {Promise<string>} - Path to downloaded audio file
  */
@@ -23,37 +22,53 @@ export async function downloadYouTubeAudio(youtubeUrl) {
   }
 
   const timestamp = Date.now();
-  const outputPath = path.join(tempDir, `youtube-${timestamp}.mp4`);
+  const outputTemplate = path.join(tempDir, `youtube-${timestamp}.%(ext)s`);
   
   try {
-    console.log('Downloading YouTube audio with ytdl-core...');
+    console.log('Downloading YouTube audio with youtube-dl...');
     
-    // Get video info first
-    const info = await ytdl.getInfo(youtubeUrl);
-    console.log(`Video: ${info.videoDetails.title} (${info.videoDetails.lengthSeconds}s)`);
-    
-    // Download audio only (highest quality)
-    const audioStream = ytdl.default(youtubeUrl, {
-      quality: 'highestaudio',
-      filter: 'audioonly'
+    // Download audio only, convert to MP3
+    await youtubedl(youtubeUrl, {
+      extractAudio: true,
+      audioFormat: 'mp3',
+      audioQuality: 0, // Best quality
+      output: outputTemplate,
+      noCheckCertificates: true,
+      noWarnings: true,
+      preferFreeFormats: true
     });
     
-    // Save to file
-    const writeStream = fs.createWriteStream(outputPath);
-    await pipeline(audioStream, writeStream);
+    // Find the downloaded file
+    const expectedPath = path.join(tempDir, `youtube-${timestamp}.mp3`);
     
-    console.log('YouTube audio downloaded successfully:', outputPath);
-    return outputPath;
+    if (!fs.existsSync(expectedPath)) {
+      // Look for any file with our timestamp
+      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`youtube-${timestamp}`));
+      if (files.length === 0) {
+        throw new Error('Downloaded file not found');
+      }
+      const actualPath = path.join(tempDir, files[0]);
+      console.log('YouTube audio downloaded successfully:', actualPath);
+      return actualPath;
+    }
+    
+    console.log('YouTube audio downloaded successfully:', expectedPath);
+    return expectedPath;
     
   } catch (error) {
     console.error('YouTube download error:', error);
-    // Cleanup on error
-    if (fs.existsSync(outputPath)) {
-      try {
-        fs.unlinkSync(outputPath);
-      } catch (e) {
-        console.error('Failed to cleanup partial file:', e);
-      }
+    // Cleanup any partial files
+    try {
+      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`youtube-${timestamp}`));
+      files.forEach(file => {
+        try {
+          fs.unlinkSync(path.join(tempDir, file));
+        } catch (e) {
+          console.error('Failed to cleanup partial file:', e);
+        }
+      });
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError);
     }
     throw new Error(`Failed to download YouTube audio: ${error.message}`);
   }

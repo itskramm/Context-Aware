@@ -12,58 +12,15 @@ import { isYouTubeUrl, downloadYouTubeAudio, checkYtDlpInstalled } from './youtu
 export async function extractAudio(videoUrl) {
   // Check if it's a YouTube URL
   if (isYouTubeUrl(videoUrl)) {
-    console.log('Detected YouTube URL, using ytdl-core...');
+    console.log('Detected YouTube URL, using youtube-dl...');
     
-    // Download directly as audio - ytdl-core returns MP4/M4A
-    const audioPath = await downloadYouTubeAudio(videoUrl);
-    
-    // Convert to MP3 for consistency
-    return await convertToMp3(audioPath);
+    // Download directly as MP3 - youtube-dl-exec handles conversion
+    return await downloadYouTubeAudio(videoUrl);
   }
   
   // Otherwise, use direct download + ffmpeg extraction
   console.log('Using direct download for non-YouTube URL...');
   return await extractAudioDirect(videoUrl);
-}
-
-/**
- * Convert audio file to MP3 format
- * @param {string} inputPath - Path to input audio file
- * @returns {Promise<string>} - Path to MP3 file
- */
-async function convertToMp3(inputPath) {
-  const tempDir = path.join(process.cwd(), 'temp');
-  const outputPath = path.join(tempDir, `audio-${Date.now()}.mp3`);
-  
-  console.log('Converting to MP3...');
-  
-  await new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .toFormat('mp3')
-      .audioCodec('libmp3lame')
-      .audioBitrate('128k')
-      .on('end', () => {
-        console.log('Conversion to MP3 complete');
-        resolve();
-      })
-      .on('error', (err) => {
-        console.error('FFmpeg conversion error:', err);
-        reject(err);
-      })
-      .on('progress', (progress) => {
-        if (progress.percent) {
-          console.log(`Converting: ${Math.round(progress.percent)}% done`);
-        }
-      })
-      .save(outputPath);
-  });
-  
-  // Cleanup original file
-  if (fs.existsSync(inputPath)) {
-    fs.unlinkSync(inputPath);
-  }
-  
-  return outputPath;
 }
 
 /**
