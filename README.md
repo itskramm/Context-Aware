@@ -347,3 +347,7 @@ For issues and questions, check the troubleshooting section or contact the devel
 ---
 
 **Built with ❤️ for better learning experiences**
+
+---
+
+*Last updated: November 1, 2026*
