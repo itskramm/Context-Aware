@@ -5,11 +5,17 @@ import axios from 'axios';
 import { isYouTubeUrl, downloadYouTubeAudio, checkYtDlpInstalled } from './youtubeService.js';
 
 /**
- * Extract audio from video URL (supports YouTube and direct URLs)
- * @param {string} videoUrl - Video URL (YouTube or direct)
+ * Extract audio from video URL or local file path
+ * @param {string} videoUrl - Video URL or local file path
  * @returns {Promise<string>} - Path to extracted audio file
  */
 export async function extractAudio(videoUrl) {
+  // Check if it's a local file path
+  if (videoUrl.startsWith('/') || videoUrl.includes('uploads/')) {
+    console.log('Detected local file, processing directly...');
+    return await processLocalFile(videoUrl);
+  }
+  
   // Check if it's a YouTube URL
   if (isYouTubeUrl(videoUrl)) {
     console.log('Detected YouTube URL, using youtube-dl...');
@@ -21,6 +27,53 @@ export async function extractAudio(videoUrl) {
   // Otherwise, use direct download + ffmpeg extraction
   console.log('Using direct download for URL...');
   return await extractAudioDirect(videoUrl);
+}
+
+/**
+ * Process local file (already uploaded)
+ * @param {string} filePath - Local file path
+ * @returns {Promise<string>} - Path to audio file (MP3)
+ */
+async function processLocalFile(filePath) {
+  const tempDir = path.join(process.cwd(), 'temp');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+
+  // Check if file is already audio (MP3, WAV, M4A)
+  const ext = path.extname(filePath).toLowerCase();
+  if (['.mp3', '.wav', '.m4a'].includes(ext)) {
+    console.log('File is already audio format, no conversion needed');
+    return filePath;
+  }
+
+  // Convert video to audio
+  const audioPath = path.join(tempDir, `audio-${Date.now()}.mp3`);
+  
+  console.log('Converting video to audio...');
+  
+  await new Promise((resolve, reject) => {
+    ffmpeg(filePath)
+      .toFormat('mp3')
+      .audioCodec('libmp3lame')
+      .audioBitrate('128k')
+      .on('end', () => {
+        console.log('Audio conversion complete');
+        resolve();
+      })
+      .on('error', (err) => {
+        console.error('FFmpeg error:', err);
+        reject(err);
+      })
+      .on('progress', (progress) => {
+        if (progress.percent) {
+          console.log(`Converting: ${Math.round(progress.percent)}% done`);
+        }
+      })
+      .save(audioPath);
+  });
+  
+  return audioPath;
 }
 
 /**
