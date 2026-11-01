@@ -12,6 +12,12 @@ import authRoutes from './routes/auth.js';
 import lectureRoutes from './routes/lectures.js';
 import digestRoutes from './routes/digests.js';
 import processingRoutes from './routes/processing.js';
+import transcriptRoutes from './routes/transcripts.js';
+import topicRoutes from './routes/topics.js';
+import segmentRoutes from './routes/segments.js';
+import interactionRoutes from './routes/interactions.js';
+import functionRoutes from './routes/functions.js';
+import analyticsRoutes from './routes/analytics.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -46,6 +52,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/lectures', lectureRoutes);
 app.use('/api/digests', digestRoutes);
 app.use('/api/processing', processingRoutes);
+app.use('/api/transcripts', transcriptRoutes);
+app.use('/api/topics', topicRoutes);
+app.use('/api/digest-segments', segmentRoutes);
+app.use('/api/interactions', interactionRoutes);
+app.use('/api/functions', functionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {

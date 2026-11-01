@@ -43,12 +43,31 @@ router.post('/lecture/:id', async (req, res) => {
     console.log('Step 2: Transcribing with Groq Whisper (FREE)...');
     const transcription = await transcribeWithGroq(audioPath);
     
-    // Save transcript
+    // Save transcript segments
+    const transcriptBatch = db.batch();
+    const segments = transcription.segments || [];
+    
+    for (const segment of segments) {
+      const segmentRef = db.collection('transcripts').doc();
+      transcriptBatch.set(segmentRef, {
+        lectureId: id,
+        timestamp: segment.start || 0,
+        text: segment.text || '',
+        speaker: segment.speaker || null,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    await transcriptBatch.commit();
+    console.log(`Saved ${segments.length} transcript segments`);
+    
+    // Save full transcript for backward compatibility
     const transcriptRef = await db.collection('transcripts').add({
       lectureId: id,
       text: transcription.text,
       segments: transcription.segments,
       language: transcription.language || 'en',
+      timestamp: 0,
       createdAt: new Date().toISOString()
     });
     
@@ -57,6 +76,32 @@ router.post('/lecture/:id', async (req, res) => {
     // Step 3: Generate summary with Groq GPT-OSS-120B (FREE!)
     console.log('Step 3: Generating summary with Groq GPT-OSS-120B (FREE)...');
     const summary = await generateSummaryWithGroq(transcription.text);
+    
+    // Step 3.5: Extract topics from summary
+    const topics = summary.topics || [];
+    if (topics.length > 0) {
+      const topicBatch = db.batch();
+      
+      topics.forEach((topic, index) => {
+        const topicRef = db.collection('topics').doc();
+        // Distribute topics evenly across the video duration
+        const segmentDuration = duration / topics.length;
+        const startTime = Math.floor(segmentDuration * index);
+        const endTime = Math.floor(segmentDuration * (index + 1));
+        
+        topicBatch.set(topicRef, {
+          lectureId: id,
+          topicName: typeof topic === 'string' ? topic : topic.name || 'Topic',
+          description: typeof topic === 'object' ? topic.description || '' : '',
+          startTime,
+          endTime,
+          createdAt: new Date().toISOString()
+        });
+      });
+      
+      await topicBatch.commit();
+      console.log(`Saved ${topics.length} topics`);
+    }
     
     // Step 4: Generate questions (optional, FREE!)
     let questions = [];
