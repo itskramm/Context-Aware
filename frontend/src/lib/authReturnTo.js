@@ -40,9 +40,34 @@ export function consumeReturnTo(defaultPath = "/dashboard") {
   return returnTo
 }
 
+/**
+ * Resolve ?returnTo= to a safe same-origin path, else default.
+ * Prevents open redirect vulnerabilities.
+ * @returns {string} Safe path to redirect to
+ */
+export function safeReturnTo() {
+  const raw = new URLSearchParams(window.location.search).get("returnTo");
+  if (!raw) return "/";
+  try {
+    const url = new URL(raw, window.location.origin);
+    if (url.origin !== window.location.origin) return "/";
+    // Strip auth-bootstrap params
+    for (const p of ["access_token", "clear_access_token", "app_id", "app_base_url", "functions_version", "from_url"]) {
+      url.searchParams.delete(p);
+    }
+    const path = url.pathname + url.search;
+    // Ensure path is safe: starts with / but not // or contains \
+    if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return "/";
+    return path;
+  } catch {
+    return "/";
+  }
+}
+
 export default {
   saveReturnTo,
   getReturnTo,
   clearReturnTo,
   consumeReturnTo,
+  safeReturnTo,
 }

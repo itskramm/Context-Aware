@@ -1,5 +1,3 @@
-import { getAccessToken } from '@base44/sdk';
-
 const isNode = typeof window === 'undefined';
 
 const isClearAccessTokenRequested = () =>
@@ -8,6 +6,14 @@ const isClearAccessTokenRequested = () =>
 const clearStoredAccessToken = () => {
 	window.localStorage.removeItem('base44_access_token');
 	window.localStorage.removeItem('token');
+	window.localStorage.removeItem('auth_token');
+}
+
+const getAccessToken = () => {
+	if (isNode) return null;
+	return window.localStorage.getItem('auth_token') || 
+	       window.localStorage.getItem('token') || 
+	       window.localStorage.getItem('base44_access_token');
 }
 
 const getAppParams = () => {
@@ -22,7 +28,10 @@ const getAppParams = () => {
 	}
 }
 
-
 export const appParams = {
 	...getAppParams()
 }
+
+// Also export as APP_PARAMS for compatibility
+export const APP_PARAMS = appParams;
+
