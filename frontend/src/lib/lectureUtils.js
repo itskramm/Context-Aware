@@ -1,148 +1,148 @@
-/**
- * Lecture utility functions
- */
+// Shared helpers for the lecture digest app.
 
-import { APP_PARAMS } from "./app-params"
-
-/**
- * Format duration in seconds to readable string
- * @param {number} seconds - Duration in seconds
- * @returns {string} Formatted duration (e.g., "1h 23m" or "45m")
- */
-export function formatDuration(seconds) {
-  if (!seconds || seconds < 0) return "0m"
-  
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-  
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
-  }
-  
-  if (minutes > 0) {
-    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
-  }
-  
-  return `${secs}s`
+// Convert seconds to HH:MM:SS (or MM:SS when under an hour).
+export function formatDuration(totalSeconds) {
+  if (!totalSeconds || totalSeconds < 0) return "00:00";
+  const s = Math.floor(totalSeconds % 60);
+  const m = Math.floor((totalSeconds / 60) % 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const pad = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
-/**
- * Format file size to readable string
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted size (e.g., "1.5 MB")
- */
+// Convert seconds to a compact label e.g. "1h 32m" or "12m 15s".
+export function compactDuration(totalSeconds) {
+  if (!totalSeconds || totalSeconds < 0) return "0m";
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+export const PROCESSING_STAGES = [
+  { key: "uploading", label: "Uploading", icon: "Upload" },
+  { key: "extracting_audio", label: "Extracting audio", icon: "AudioLines" },
+  { key: "generating_transcript", label: "Generating transcript", icon: "FileText" },
+  { key: "identifying_segments", label: "Identifying important segments", icon: "Scissors" },
+  { key: "preparing_index", label: "Preparing lecture index", icon: "ListTree" },
+  { key: "ready", label: "Ready", icon: "CheckCircle2" },
+];
+
+export const STAGE_KEYS = PROCESSING_STAGES.map((s) => s.key);
+
+export function stageIndex(status) {
+  const i = STAGE_KEYS.indexOf(status);
+  return i < 0 ? 0 : i;
+}
+
+export function stageProgress(status) {
+  if (status === "ready") return 100;
+  if (status === "failed") return 100;
+  const i = stageIndex(status);
+  return Math.round((i / (STAGE_KEYS.length - 1)) * 100);
+}
+
+export const STATUS_LABELS = {
+  uploading: "Uploading",
+  extracting_audio: "Extracting audio",
+  generating_transcript: "Transcribing",
+  analyzing_visual: "Analyzing visuals",
+  identifying_segments: "Identifying segments",
+  preparing_index: "Indexing",
+  ready: "Ready",
+  failed: "Failed",
+};
+
+export const STATUS_STYLES = {
+  uploading: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  extracting_audio: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  generating_transcript: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  analyzing_visual: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  identifying_segments: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  preparing_index: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  ready: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+  failed: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+};
+
+export const PURPOSE_LABELS = {
+  exam_review: "Exam review",
+  missed_lecture: "Missed lecture",
+  assignment: "Assignment",
+  general_review: "General review",
+  specific_topic: "Specific topic",
+  other: "Other",
+};
+
+export const DEPTH_LABELS = {
+  quick: "Quick Review",
+  standard: "Standard",
+  detailed: "Detailed",
+};
+
+export const SUPPORTED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/webm",
+  "video/ogg",
+];
+
+export const MAX_FILE_SIZE_MB = 500;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export function formatFileSize(bytes) {
-  if (bytes === 0) return "0 Bytes"
-  
-  const k = 1024
-  const sizes = ["Bytes", "KB", "MB", "GB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/**
- * Extract YouTube video ID from URL
- * @param {string} url - YouTube URL
- * @returns {string|null} Video ID or null
- */
-export function extractYouTubeId(url) {
-  if (!url) return null
-  
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/,
-    /youtube\.com\/embed\/([^&\s]+)/,
-    /youtube\.com\/v\/([^&\s]+)/,
-  ]
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern)
-    if (match && match[1]) {
-      return match[1]
-    }
-  }
-  
-  return null
+export function isValidVideoFile(file) {
+  if (!file) return false;
+  if (file.size > MAX_FILE_SIZE_BYTES) return false;
+  if (SUPPORTED_VIDEO_TYPES.includes(file.type)) return true;
+  const name = (file.name || "").toLowerCase();
+  return [".mp4", ".mov", ".avi", ".webm", ".ogg"].some((ext) => name.endsWith(ext));
 }
 
-/**
- * Check if URL is a valid YouTube URL
- * @param {string} url - URL to check
- * @returns {boolean} True if valid YouTube URL
- */
-export function isYouTubeUrl(url) {
-  return APP_PARAMS.YOUTUBE_URL_REGEX.test(url)
+// Get a readable video duration from a File via a temporary <video> element.
+export function getVideoMeta(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadedmetadata = () => {
+      const duration = video.duration || 0;
+      URL.revokeObjectURL(url);
+      resolve({ duration, thumbnailUrl: null });
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve({ duration: 0, thumbnailUrl: null });
+    };
+    video.src = url;
+  });
 }
 
-/**
- * Validate file type for lecture upload
- * @param {File} file - File to validate
- * @returns {Object} Validation result
- */
-export function validateLectureFile(file) {
-  const errors = []
-  
-  // Check file size
-  if (file.size > APP_PARAMS.MAX_FILE_SIZE) {
-    errors.push(
-      `File size exceeds maximum allowed size of ${formatFileSize(APP_PARAMS.MAX_FILE_SIZE)}`
-    )
-  }
-  
-  // Check file type
-  const extension = "." + file.name.split(".").pop().toLowerCase()
-  const allowedFormats = [
-    ...APP_PARAMS.ALLOWED_VIDEO_FORMATS,
-    ...APP_PARAMS.ALLOWED_AUDIO_FORMATS,
-  ]
-  
-  if (!allowedFormats.includes(extension)) {
-    errors.push(
-      `File type ${extension} is not supported. Allowed formats: ${allowedFormats.join(", ")}`
-    )
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors,
-  }
-}
-
-/**
- * Get lecture status badge color
- * @param {string} status - Lecture status
- * @returns {string} Tailwind color class
- */
-export function getLectureStatusColor(status) {
-  const colors = {
-    processing: "bg-yellow-100 text-yellow-800",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-    pending: "bg-blue-100 text-blue-800",
-  }
-  
-  return colors[status] || "bg-gray-100 text-gray-800"
-}
-
-/**
- * Format date to relative time
- * @param {Date|string} date - Date to format
- * @returns {string} Relative time string
- */
-export function formatRelativeTime(date) {
-  const now = new Date()
-  const past = new Date(date)
-  const diffInSeconds = Math.floor((now - past) / 1000)
-  
-  if (diffInSeconds < 60) return "just now"
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  
-  return past.toLocaleDateString()
-}
-
+// Capture a thumbnail frame from a video File.
+export function captureVideoThumbnail(file, seekTime = 1) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadeddata = () => {
+      try {
+        video.currentTime = Math.min(seekTime, Math.max(0, (video.duration || 2) - 1));
+      } catch {
+        resolve(null);
+      }
+    };
+    video.onseeked = () => {
+      try {
+        canvas.width = video.videoWidth || 480;
 /**
  * Generate thumbnail URL for YouTube video
  * @param {string} videoId - YouTube video ID
@@ -160,6 +160,48 @@ export function getYouTubeThumbnail(videoId, quality = "high") {
   return `https://img.youtube.com/vi/${videoId}/${qualities[quality] || "hqdefault"}.jpg`
 }
 
+// Additional utility exports
+export const STATUS_LABELS = {
+  pending: "Pending",
+  processing: "Processing",
+  completed: "Completed",
+  failed: "Failed",
+};
+
+export const STATUS_STYLES = {
+  pending: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  completed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  failed: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+};
+
+export const PURPOSE_LABELS = {
+  study: "Study",
+  review: "Review",
+  reference: "Reference",
+  research: "Research",
+};
+
+export function compactDuration(seconds) {
+  if (!seconds || seconds < 0) return "0m";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+export function relativeDate(date) {
+  return formatRelativeTime(date);
+}
+
+export function getYoutubeId(url) {
+  return extractYouTubeId(url);
+}
+
+export function isYoutubeUrl(url) {
+  return isYouTubeUrl(url);
+}
+
 export default {
   formatDuration,
   formatFileSize,
@@ -169,4 +211,40 @@ export default {
   getLectureStatusColor,
   formatRelativeTime,
   getYouTubeThumbnail,
+  STATUS_LABELS,
+  STATUS_STYLES,
+  PURPOSE_LABELS,
+  compactDuration,
+  relativeDate,
+  getYoutubeId,
+  isYoutubeUrl,
+}     if (u.pathname === "/watch") return u.searchParams.get("v");
+      const m = u.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/);
+      if (m) return m[2];
+    }
+  } catch {
+    // Not a valid URL — fall through.
+  }
+  return null;
+}
+
+export function isYoutubeUrl(url) {
+  return !!getYoutubeId(url);
+}
+
+export function youtubeThumbnail(videoId) {
+  return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
+}
+
+export function relativeDate(dateStr) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? "" : "s"} ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
