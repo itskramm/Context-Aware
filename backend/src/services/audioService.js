@@ -5,19 +5,17 @@ import axios from 'axios';
 import { isYouTubeUrl, downloadYouTubeAudio, checkYtDlpInstalled } from './youtubeService.js';
 
 /**
- * Extract audio from video URL (supports direct URLs and file uploads)
- * @param {string} videoUrl - Video URL or file path
+ * Extract audio from video URL (supports YouTube and direct URLs)
+ * @param {string} videoUrl - Video URL (YouTube or direct)
  * @returns {Promise<string>} - Path to extracted audio file
  */
 export async function extractAudio(videoUrl) {
   // Check if it's a YouTube URL
   if (isYouTubeUrl(videoUrl)) {
-    throw new Error(
-      'YouTube downloads are currently unavailable due to platform restrictions. ' +
-      'Please upload your audio/video file directly instead of using a YouTube URL. ' +
-      'Supported formats: MP3, MP4, WAV, M4A. ' +
-      'For more information, contact support.'
-    );
+    console.log('Detected YouTube URL, using youtube-dl...');
+    
+    // Try to download - will throw helpful error if blocked
+    return await downloadYouTubeAudio(videoUrl);
   }
   
   // Otherwise, use direct download + ffmpeg extraction

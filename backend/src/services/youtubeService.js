@@ -43,7 +43,7 @@ export async function downloadYouTubeAudio(youtubeUrl) {
       // Use IPv4 to avoid some YouTube blocks
       forceIpv4: true,
       // Bypass age gate
-      age Limit: 21
+      ageLimit: 21
     });
     
     // Find the downloaded file
@@ -68,7 +68,7 @@ export async function downloadYouTubeAudio(youtubeUrl) {
     
     // Check if it's a bot detection error
     if (error.message && error.message.includes('Sign in to confirm')) {
-      throw new Error('YouTube is blocking automated downloads. Please try uploading an audio file directly, or try a different video URL. For production use, consider implementing file uploads or using YouTube\'s official API.');
+      throw new Error('YouTube is blocking automated downloads from our server. This is a common issue with cloud hosting. Please try: (1) Use a direct audio file URL instead, or (2) Upload your audio/video file directly. For production use, we recommend implementing file uploads.');
     }
     
     // Cleanup any partial files
