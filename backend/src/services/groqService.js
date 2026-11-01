@@ -2,9 +2,16 @@ import Groq from 'groq-sdk';
 import fs from 'fs';
 import path from 'path';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY // Get free key at console.groq.com
-});
+// Initialize Groq only if API key is available
+let groq = null;
+if (process.env.GROQ_API_KEY) {
+  groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY // Get free key at console.groq.com
+  });
+  console.log('✅ Groq API initialized');
+} else {
+  console.warn('⚠️  GROQ_API_KEY not set - transcription will not work');
+}
 
 /**
  * Transcribe audio using Groq's Whisper (FREE!)
