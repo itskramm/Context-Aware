@@ -16,44 +16,30 @@ export async function hashPassword(email, password) {
 // The backend takes the email from the authenticated caller.
 export async function recordPasswordHash(email, password) {
   const passwordHash = await hashPassword(email, password);
-  await base44.functions.invoke("recordPasswordHash", { password_hash: passwordHash });
+  try {
+    await base44.functions?.invoke("recordPasswordHash", { password_hash: passwordHash });
+  } catch (error) {
+    console.warn('Failed to record password hash:', error);
+  }
 }
 
 // Returns true when the candidate password matches one previously used.
 export async function isPasswordReused(email, password) {
-  const candidateHash = await hashPassword(email, password);
-  const res = await base44.functions.invoke("checkPasswordReuse", {
-    email,
-    candidate_hash: candidateHash,
-  });
-  return res?.data?.reused === true;
-}/**
- * Clear password history for a user
- * @param {string} userId - User ID
- */
-export function clearPasswordHistory(userId) {
-  const historyData = localStorage.getItem(PASSWORD_HISTORY_KEY)
-  const history = historyData ? JSON.parse(historyData) : {}
-  
-  if (history[userId]) {
-    delete history[userId]
-    localStorage.setItem(PASSWORD_HISTORY_KEY, JSON.stringify(history))
+  try {
+    const candidateHash = await hashPassword(email, password);
+    const res = await base44.functions?.invoke("checkPasswordReuse", {
+      email,
+      candidate_hash: candidateHash,
+    });
+    return res?.data?.reused === true;
+  } catch (error) {
+    console.warn('Failed to check password reuse:', error);
+    return false;
   }
 }
 
-/**
- * Record password hash (alias for addToPasswordHistory)
- * @param {string} password - Password to record
- * @param {string} userId - User ID (optional, uses 'default' if not provided)
- */
-export async function recordPasswordHash(password, userId = 'default') {
-  return addToPasswordHistory(userId, password)
-}
-
 export default {
-  getPasswordHistory,
-  addToPasswordHistory,
-  isPasswordInHistory,
-  clearPasswordHistory,
+  hashPassword,
   recordPasswordHash,
+  isPasswordReused,
 }
