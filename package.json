@@ -1,0 +1,24 @@
+{
+  "name": "context-aware",
+  "version": "1.0.0",
+  "description": "A full-stack application for managing and processing lecture content",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "start:backend": "cd backend && npm start"
+  },
+  "keywords": [
+    "lecture",
+    "digest",
+    "education"
+  ],
+  "author": "",
+  "license": "ISC"
+}
