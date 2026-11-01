@@ -1,6 +1,6 @@
 import express from 'express';
 import { getFirestore } from '../config/database.js';
-import { processLecture } from '../services/processing.js';
+import { processLecture } from '../services/processingService.js';
 
 const router = express.Router();
 
