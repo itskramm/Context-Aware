@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { APP_PARAMS } from "./app-params"
 
 const AuthContext = createContext(null)
@@ -8,7 +7,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(null)
-  const navigate = useNavigate()
 
   useEffect(() => {
     // Check for existing session on mount
@@ -16,8 +14,12 @@ export function AuthProvider({ children }) {
     const storedUser = localStorage.getItem(APP_PARAMS.USER_KEY)
 
     if (storedToken && storedUser) {
-      setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      try {
+        setToken(storedToken)
+        setUser(JSON.parse(storedUser))
+      } catch (err) {
+        console.error('Failed to parse stored user:', err)
+      }
     }
     
     setLoading(false)
@@ -35,7 +37,8 @@ export function AuthProvider({ children }) {
     setToken(null)
     localStorage.removeItem(APP_PARAMS.TOKEN_KEY)
     localStorage.removeItem(APP_PARAMS.USER_KEY)
-    navigate("/login")
+    // Component calling logout should handle navigation
+    window.location.href = '/login'
   }
 
   const updateUser = (userData) => {
@@ -43,28 +46,31 @@ export function AuthProvider({ children }) {
     localStorage.setItem(APP_PARAMS.USER_KEY, JSON.stringify(userData))
   }
 
-  const isAuthenticated = () => {
-    return !!token && !!user
-  }
+  const isAuthenticated = !!token && !!user
 
   const hasRole = (role) => {
     return user?.role === role
   }
 
   const isAdmin = () => {
-    return hasRole(APP_PARAMS.ROLES.ADMIN)
+    return hasRole('Admin') || hasRole('Super Admin')
   }
 
   const value = {
     user,
     token,
     loading,
+    isAuthenticated,
     login,
     logout,
     updateUser,
-    isAuthenticated,
     hasRole,
     isAdmin,
+    // Compatibility properties for components expecting these
+    isLoadingAuth: loading,
+    isLoadingPublicSettings: false,
+    authError: null,
+    navigateToLogin: () => { window.location.href = '/login' },
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
