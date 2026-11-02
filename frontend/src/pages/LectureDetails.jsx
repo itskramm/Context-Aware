@@ -64,12 +64,29 @@ export default function LectureDetails() {
       const lec = await base44.entities.Lecture.get(id);
       setLecture(lec);
       if (lec.processing_status === "ready") {
-        const [t, tp] = await Promise.all([
-          base44.entities.Transcript.filter({ lecture_id: id }, "timestamp", 500),
-          base44.entities.Topic.filter({ lecture_id: id }, "start_time", 100),
-        ]);
-        setTranscripts(t || []);
-        setTopics(tp || []);
+        try {
+          const [t, tp] = await Promise.all([
+            base44.entities.Transcript.filter({ lecture_id: id }, "timestamp", 500).catch(err => {
+              console.error('Failed to load transcripts:', err);
+              return [];
+            }),
+            base44.entities.Topic.filter({ lecture_id: id }, "start_time", 100).catch(err => {
+              console.error('Failed to load topics:', err);
+              return [];
+            }),
+          ]);
+          setTranscripts(t || []);
+          setTopics(tp || []);
+          
+          // If both are empty, might be index building
+          if (t.length === 0 && tp.length === 0) {
+            console.warn('No transcripts or topics loaded - Firebase indexes may still be building');
+          }
+        } catch (err) {
+          console.error('Error loading transcript/topics:', err);
+          // Don't block the page if transcripts/topics fail to load
+        }
+        
         // Record a view interaction + bump view count.
         try {
           await base44.entities.UserInteraction.create({
@@ -80,6 +97,7 @@ export default function LectureDetails() {
         } catch {}
       }
     } catch (err) {
+      console.error('Load lecture error:', err);
       toast({ title: "Could not load lecture", description: err?.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -380,6 +398,21 @@ function TranscriptTab({ transcripts, search, setSearch, seekTo }) {
   const filtered = search
     ? transcripts.filter((t) => t.text.toLowerCase().includes(search.toLowerCase()))
     : transcripts;
+
+  if (transcripts.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+        <h3 className="font-semibold">No transcript available</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          The transcript may still be processing. If this lecture was recently uploaded, please wait a few minutes and refresh the page. Firebase database indexes may also still be building.
+        </p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+          <RefreshCw className="w-4 h-4 mr-1" /> Refresh Page
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card">
