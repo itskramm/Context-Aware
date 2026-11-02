@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 
 const INACTIVITY_LIMIT_MS = 1800000; // 30 minutes of inactivity
@@ -9,6 +9,7 @@ const WARNING_AT_MS = 1500000; // warn 5 minutes before logout
 // interaction (clicks, key presses, scrolling, touches). Shows a warning
 // toast shortly before the session expires.
 export default function InactivityLogout() {
+  const { logout } = useAuth();
   const warnedRef = useRef(false);
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function InactivityLogout() {
         }
       }, WARNING_AT_MS);
       logoutTimer = setTimeout(() => {
-        base44.auth.logout("/login");
+        logout();
       }, INACTIVITY_LIMIT_MS);
     };
 
@@ -42,7 +43,7 @@ export default function InactivityLogout() {
       clearTimeout(logoutTimer);
       clearTimeout(warnTimer);
     };
-  }, []);
+  }, [logout]);
 
   return null;
 }

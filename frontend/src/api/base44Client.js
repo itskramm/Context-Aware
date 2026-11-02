@@ -191,12 +191,14 @@ class Base44Client {
     },
     logout: () => {
       this.setToken(null);
-      return this.post('/auth/logout');
+      return this.post('/auth/logout').catch(() => {});
     },
     forgotPassword: (email) => this.post('/auth/forgot-password', { email }),
     resetPassword: (data) => this.post('/auth/reset-password', data),
     verifyOtp: (data) => this.post('/auth/verify-otp', data),
-    me: () => this.get('/auth/me'),
+    resendOtp: (email) => this.post('/auth/resend-otp', { email }),
+    me: () => this.get('/auth/me', {}, { cache: false }),
+    updateMe: (data) => this.patch('/auth/me', data),
   };
 
   // Users methods

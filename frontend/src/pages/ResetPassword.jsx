@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,14 +8,15 @@ import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordStrength from "@/components/PasswordStrength";
 import { validatePassword } from "@/lib/authValidations";
-import { isPasswordReused } from "@/lib/passwordHistory";
+import { isPasswordReused, recordPasswordHash } from "@/lib/passwordHistory";
 import BackButton from "@/components/BackButton";
 import { toast } from "@/components/ui/use-toast";
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
-  const resetToken = searchParams.get("token");
+  // Email is set in sessionStorage by ForgotPassword after OTP is verified.
+  const verifiedEmail = sessionStorage.getItem("pwd_reset_verified_email") || "";
 
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,56 +27,58 @@ export default function ResetPassword() {
     setError("");
 
     const pwErr = validatePassword(newPassword);
-    if (pwErr) {
-      setError(pwErr);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
+    if (pwErr) { setError(pwErr); return; }
+    if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
 
     setLoading(true);
     try {
-      const resetEmail = localStorage.getItem("pwd_reset_email") || "";
-      if (resetEmail) {
-        const reused = await isPasswordReused(resetEmail, newPassword);
+      if (verifiedEmail) {
+        const reused = await isPasswordReused(verifiedEmail, newPassword);
         if (reused) {
           setError("You cannot reuse a previous password. Please choose a new password.");
           return;
         }
       }
-      await base44.auth.resetPassword({ resetToken, newPassword });
+
+      // Update the password via the backend
+      await base44.auth.resetPassword({ email: verifiedEmail, newPassword });
+
+      // Record new password hash for future reuse checks
+      if (verifiedEmail) {
+        await recordPasswordHash(verifiedEmail, newPassword).catch(() => {});
+      }
+
+      // Clean up
+      sessionStorage.removeItem("pwd_reset_verified_email");
       localStorage.removeItem("pwd_reset_email");
-      window.location.href = "/login?reset=1";
+
+      navigate("/login?reset=1");
     } catch (err) {
-      setError(
-        err?.message ||
-          "Failed to reset password. The link may have expired — please request a new one."
-      );
+      setError(err?.message || "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const backToLogin = <div className="mt-6"><BackButton to="/login" label="Back to Login" /></div>;
-
-  if (!resetToken) {
+  // Guard: if no verified email the user hasn't gone through OTP
+  if (!verifiedEmail) {
     return (
       <AuthLayout
         icon={AlertTriangle}
-        title="Invalid reset link"
-        subtitle="This password reset link is missing or invalid"
+        title="Verification required"
+        subtitle="You need to verify your email before resetting your password"
         footer={
           <Link to="/forgot-password" className="text-primary font-medium hover:underline">
-            Request a new link
+            Request a verification code
           </Link>
         }
       >
         <p className="text-sm text-foreground text-center">
-          The link you used appears to be incomplete. Please request a new password reset email.
+          Please use the Forgot Password flow to receive a code, then come back here.
         </p>
-        {backToLogin}
+        <div className="mt-6">
+          <BackButton to="/forgot-password" label="Go to Forgot Password" />
+        </div>
       </AuthLayout>
     );
   }
@@ -84,7 +87,7 @@ export default function ResetPassword() {
     <AuthLayout
       icon={Lock}
       title="New password"
-      subtitle="Enter your new password below"
+      subtitle={`Setting a new password for ${verifiedEmail}`}
     >
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -112,10 +115,7 @@ export default function ResetPassword() {
             autoComplete="new-password"
             onPaste={(e) => {
               e.preventDefault();
-              toast({
-                title: "Paste disabled",
-                description: "Please type your password again manually.",
-              });
+              toast({ title: "Paste disabled", description: "Please type your password again manually." });
             }}
           />
           <p className="text-xs text-muted-foreground">
@@ -133,7 +133,9 @@ export default function ResetPassword() {
           )}
         </Button>
       </form>
-      {backToLogin}
+      <div className="mt-6">
+        <BackButton to="/login" label="Back to Login" />
+      </div>
     </AuthLayout>
   );
 }

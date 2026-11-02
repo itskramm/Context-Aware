@@ -26,6 +26,7 @@ import {
 } from "@/lib/authValidations";
 import { recordPasswordHash } from "@/lib/passwordHistory";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { sendOtp, verifyOtp } from "@/lib/emailService";
 
 const MAX_OTP_ATTEMPTS = 5;
 const RESEND_COOLDOWN = 60;
@@ -119,7 +120,9 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await base44.auth.register({ email, password });
+      // First create the account, then send OTP for email verification
+      await base44.auth.register({ email, password, name: fullName.trim() });
+      await sendOtp(email, fullName.trim(), "register");
       setStep("otp");
       setCooldown(RESEND_COOLDOWN);
     } catch (err) {
@@ -138,29 +141,8 @@ export default function Register() {
 
   const handleVerify = async () => {
     setGlobalError("");
-    setLoading(true);
-    try {
-      const result = await base44.auth.verifyOtp({ email, otpCode });
-      if (result?.access_token) base44.auth.setToken(result.access_token);
-
-      // Save the profile details now that the account is verified.
-      try {
-        await base44.auth.updateMe({
-          name: fullName.trim(),
-          birthday,
-          address: address.trim(),
-          mobile_number: normalizeMobile(mobile),
-          username: email,
-          access_type: accessType,
-        });
-        await recordPasswordHash(email, password);
-      } catch (profileErr) {
-        console.error("Could not save profile details", profileErr);
-      }
-
-      // Do NOT keep the user logged in — send them to login.
-      base44.auth.logout("/login?registered=1");
-    } catch (err) {
+    const err = verifyOtp(email, otpCode);
+    if (err) {
       const attempts = otpAttempts + 1;
       setOtpAttempts(attempts);
       const left = MAX_OTP_ATTEMPTS - attempts;
@@ -168,21 +150,38 @@ export default function Register() {
         setOtpBlocked(true);
         setGlobalError("Too many incorrect attempts. Please request a new code.");
       } else {
-        setGlobalError(
-          (err?.message || "Invalid verification code.") +
-            ` ${left} attempt${left === 1 ? "" : "s"} remaining.`
-        );
+        setGlobalError(`${err} ${left} attempt${left === 1 ? "" : "s"} remaining.`);
       }
       setOtpCode("");
+      return;
+    }
+
+    // OTP verified — save profile details then redirect to login
+    setLoading(true);
+    try {
+      await base44.auth.updateMe({
+        name: fullName.trim(),
+        birthday,
+        address: address.trim(),
+        mobile_number: normalizeMobile(mobile),
+        username: email,
+        access_type: accessType,
+      });
+      await recordPasswordHash(email, password);
+    } catch (profileErr) {
+      console.error("Could not save profile details", profileErr);
     } finally {
       setLoading(false);
     }
+
+    window.location.href = "/login?registered=1";
   };
 
   const handleResend = async () => {
     setGlobalError("");
+    setLoading(true);
     try {
-      await base44.auth.resendOtp(email);
+      await sendOtp(email, fullName.trim(), "register");
       setOtpAttempts(0);
       setOtpBlocked(false);
       setOtpCode("");
@@ -193,6 +192,8 @@ export default function Register() {
       });
     } catch (err) {
       setGlobalError(err?.message || "Failed to resend the code. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { getAccessType } from "@/lib/authValidations";
+import { useNavigate } from "react-router-dom";
 
 const BADGE_STYLES = {
   "Super Admin": "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
@@ -16,14 +17,15 @@ const BADGE_STYLES = {
 // App header: shows the signed-in user's access type (top-left, read-only)
 // plus Reset Password, theme toggle and Logout.
 export default function AppHeader() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const accessType = getAccessType(user);
   const email = user?.email || "";
 
   const handleResetPassword = async () => {
     try {
       localStorage.setItem("pwd_reset_email", email);
-      await base44.auth.resetPasswordRequest(email);
+      await base44.auth.forgotPassword(email);
       toast({
         title: "Reset link sent",
         description: `A password reset link was sent to ${email}. Open it to set a new password.`,
@@ -35,6 +37,10 @@ export default function AppHeader() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleLogout = () => {
+    logout();
   };
 
   return (
@@ -55,7 +61,7 @@ export default function AppHeader() {
             <KeyRound className="w-4 h-4" />
             <span className="hidden sm:inline ml-1">Reset Password</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => base44.auth.logout("/login")}>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline ml-1">Logout</span>
           </Button>
