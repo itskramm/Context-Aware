@@ -69,24 +69,24 @@ export default function MyLectures() {
   useEffect(() => { load(); }, [load]);
 
   const set = new Set();
-  lectures.forEach((l) => { if (l.course) set.add(l.course); });
+  (lectures || []).forEach((l) => { if (l?.course) set.add(l.course); });
   const courses = [...set].sort();
 
-  let filtered = lectures;
+  let filtered = lectures || [];
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter((l) =>
-      l.title?.toLowerCase().includes(q) ||
-      l.course?.toLowerCase().includes(q) ||
-      l.instructor?.toLowerCase().includes(q) ||
-      l.tags?.some((t) => t.toLowerCase().includes(q))
+      l?.title?.toLowerCase().includes(q) ||
+      l?.course?.toLowerCase().includes(q) ||
+      l?.instructor?.toLowerCase().includes(q) ||
+      (l?.tags || []).some((t) => t?.toLowerCase().includes(q))
     );
   }
-  if (course !== "all") filtered = filtered.filter((l) => l.course === course);
+  if (course !== "all") filtered = filtered.filter((l) => l?.course === course);
   filtered = [...filtered].sort((a, b) => {
-    if (sort === "oldest") return new Date(a.created_date) - new Date(b.created_date);
-    if (sort === "duration") return (b.duration || 0) - (a.duration || 0);
-    return new Date(b.created_date) - new Date(a.created_date);
+    if (sort === "oldest") return new Date(a?.created_date || 0) - new Date(b?.created_date || 0);
+    if (sort === "duration") return (b?.duration || 0) - (a?.duration || 0);
+    return new Date(b?.created_date || 0) - new Date(a?.created_date || 0);
   });
 
   return (
@@ -175,8 +175,11 @@ function LectureGridCard({ lecture, onDelete, deleting }) {
         <Link to={`/lectures/${lecture.id}`}>
           <p className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary transition-colors">{lecture.title}</p>
         </Link>
+        {lecture.instructor && (
+          <p className="text-xs text-muted-foreground mt-1">{lecture.instructor}</p>
+        )}
         <p className="text-xs text-muted-foreground mt-1">{lecture.course || "Uncategorized"}</p>
-        <p className="text-xs text-muted-foreground mt-2">{relativeDate(lecture.created_date)}</p>
+        <p className="text-xs text-muted-foreground mt-auto pt-2">{relativeDate(lecture.created_date)}</p>
         <div className="flex gap-2 mt-3 pt-3 border-t border-border">
           <Button asChild size="sm" variant="outline" className="flex-1">
             <Link to={`/lectures/${lecture.id}`}>Open</Link>
