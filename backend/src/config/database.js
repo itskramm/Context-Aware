@@ -36,7 +36,8 @@ const initializeFirebase = () => {
 
     admin.initializeApp({
       credential,
-      projectId: process.env.FIREBASE_PROJECT_ID
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`
     });
 
     db = admin.firestore();

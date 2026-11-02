@@ -6,6 +6,7 @@ import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
 import { isYouTubeUrl, extractYouTubeId } from '../services/youtubeTranscriptService.js';
 import { fetchYouTubeMetadata } from '../services/youtubeDataApiService.js';
+import { uploadFileToStorage } from '../services/storageService.js';
 
 const router = express.Router();
 
@@ -232,14 +233,23 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     const db = getFirestore();
-    
-    // Create lecture with file path
+
+    // Upload to Firebase Storage for a permanent public URL
+    let fileUrl = req.file.path; // fallback to local path if Storage fails
+    try {
+      fileUrl = await uploadFileToStorage(req.file.path, req.file.originalname, req.file.mimetype);
+      console.log(`File uploaded to Firebase Storage: ${fileUrl}`);
+    } catch (storageError) {
+      console.error('Firebase Storage upload failed, falling back to local path:', storageError.message);
+      // fileUrl stays as req.file.path (the local path)
+    }
+
     const lectureData = {
       title,
       course: course || '',
       instructor: instructor || '',
-      file_url: req.file.path, // Store local file path
-      videoUrl: req.file.path, // For backward compatibility
+      file_url: fileUrl,
+      videoUrl: fileUrl,
       uploadedBy,
       tags: tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [],
       purpose: purpose || 'general',
@@ -285,9 +295,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
   } catch (error) {
     console.error('File upload error:', error);
-    // Cleanup uploaded file on error
+    // Cleanup uploaded file on error (storageService deletes it on success)
     if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
     res.status(500).json({ error: 'Failed to upload file', details: error.message });
   }
