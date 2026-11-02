@@ -32,7 +32,6 @@ import {
   Share2,
   Calendar,
   Clock,
-  User,
 } from "lucide-react";
 import {
   STATUS_LABELS,
@@ -108,7 +107,6 @@ export default function MyLectures() {
     filtered = filtered.filter((l) =>
       l?.title?.toLowerCase().includes(q) ||
       l?.course?.toLowerCase().includes(q) ||
-      l?.instructor?.toLowerCase().includes(q) ||
       (l?.tags || []).some((t) => t?.toLowerCase().includes(q))
     );
   }
@@ -140,7 +138,7 @@ export default function MyLectures() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Search by title, course, instructor, or tags..." 
+                placeholder="Search by title, course, or tags..." 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
                 className="pl-10" 
@@ -298,12 +296,6 @@ function LectureGridCard({ lecture, onDelete, deleting }) {
             <HoverCardContent className="w-80">
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold">{lecture.title}</h4>
-                {lecture.instructor && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <User className="w-3 h-3" />
-                    {lecture.instructor}
-                  </div>
-                )}
                 {lecture.course && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Film className="w-3 h-3" />
@@ -355,9 +347,6 @@ function LectureGridCard({ lecture, onDelete, deleting }) {
         </div>
 
         <div className="mt-2 space-y-1">
-          {lecture.instructor && (
-            <p className="text-xs text-muted-foreground">{lecture.instructor}</p>
-          )}
           <p className="text-xs text-muted-foreground">{lecture.course || "Uncategorized"}</p>
           <p className="text-xs text-muted-foreground">{relativeDate(lecture.created_date)}</p>
         </div>
@@ -408,12 +397,6 @@ function LectureListRow({ lecture, onDelete, deleting }) {
         </Link>
         <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
           {lecture.course && <span>{lecture.course}</span>}
-          {lecture.instructor && (
-            <>
-              <span className="text-muted-foreground/50">•</span>
-              <span>{lecture.instructor}</span>
-            </>
-          )}
           <span className="text-muted-foreground/50">•</span>
           <span>{relativeDate(lecture.created_date)}</span>
           {lecture.duration > 0 && (

@@ -171,7 +171,7 @@ export default function MyDigests() {
                   )}
                   <div className="min-w-0 flex-1">
                     <Link to={`/digests/${d.id}`} className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary">{cardTitle}</Link>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lectureTitle !== cardTitle ? lectureTitle : (lec?.instructor || "")}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lectureTitle !== cardTitle ? lectureTitle : ""}</p>
                   </div>
                 </div>
                 {/* Summary snippet */}

@@ -10,7 +10,6 @@ const SAMPLE_LECTURES = [
   {
     title: "Database Normalization",
     course: "Database Management Systems",
-    instructor: "Prof. Santos",
     description: "An introduction to database normalization, covering 1NF, 2NF, 3NF, BCNF, and functional dependencies. We work through examples of decomposing tables to reduce redundancy and anomalies.",
     duration: 5535,
     duration_label: "01:32:15",
@@ -53,7 +52,6 @@ const SAMPLE_LECTURES = [
   {
     title: "The TCP/IP Protocol Suite",
     course: "Computer Networks",
-    instructor: "Prof. Reyes",
     description: "Overview of the TCP/IP model, covering the application, transport, internet, and link layers. We compare TCP and UDP, discuss handshakes, and walk through packet routing.",
     duration: 4200,
     duration_label: "01:10:00",
@@ -89,7 +87,6 @@ const SAMPLE_LECTURES = [
   {
     title: "Introduction to Neural Networks",
     course: "Artificial Intelligence",
-    instructor: "Prof. Cruz",
     description: "We introduce artificial neural networks: perceptrons, activation functions, forward propagation, and the basics of backpropagation. Includes a worked example on a simple dataset.",
     duration: 4800,
     duration_label: "01:20:00",
@@ -130,7 +127,6 @@ export async function seedDemoData() {
     const lecture = await base44.entities.Lecture.create({
       title: sample.title,
       course: sample.course,
-      instructor: sample.instructor,
       description: sample.description,
       lecture_date: sample.lecture_date,
       tags: sample.tags,

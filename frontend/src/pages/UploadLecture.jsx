@@ -26,7 +26,6 @@ export default function UploadLecture() {
   // Form states
   const [title, setTitle] = useState('');
   const [course, setCourse] = useState('');
-  const [instructor, setInstructor] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [tags, setTags] = useState('');
   const [file, setFile] = useState(null);
@@ -101,7 +100,6 @@ export default function UploadLecture() {
           youtubeUrl,
           title,
           course,
-          instructor,
           tags: tags ? tags.split(',').map(t => t.trim()) : [],
           uploadedBy: user.id
         })
@@ -146,7 +144,6 @@ export default function UploadLecture() {
       formData.append('file', file);
       formData.append('title', title);
       formData.append('course', course);
-      formData.append('instructor', instructor);
       formData.append('uploadedBy', user.id);
       formData.append('tags', tags);
 
@@ -257,28 +254,15 @@ export default function UploadLecture() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="youtube-course">Course</Label>
-                    <Input
-                      id="youtube-course"
-                      placeholder="CS 101"
-                      value={course}
-                      onChange={(e) => setCourse(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="youtube-instructor">Instructor</Label>
-                    <Input
-                      id="youtube-instructor"
-                      placeholder="Prof. Smith"
-                      value={instructor}
-                      onChange={(e) => setInstructor(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="youtube-course">Course</Label>
+                  <Input
+                    id="youtube-course"
+                    placeholder="CS 101"
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    disabled={loading}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -415,28 +399,15 @@ export default function UploadLecture() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="file-course">Course</Label>
-                    <Input
-                      id="file-course"
-                      placeholder="MATH 201"
-                      value={course}
-                      onChange={(e) => setCourse(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="file-instructor">Instructor</Label>
-                    <Input
-                      id="file-instructor"
-                      placeholder="Dr. Johnson"
-                      value={instructor}
-                      onChange={(e) => setInstructor(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="file-course">Course</Label>
+                  <Input
+                    id="file-course"
+                    placeholder="MATH 201"
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    disabled={loading}
+                  />
                 </div>
 
                 <div className="space-y-2">

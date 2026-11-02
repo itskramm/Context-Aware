@@ -58,9 +58,6 @@ export async function processLecture(lectureId) {
             metaUpdates.thumbnail_url = dataApiMeta.thumbnailUrl;
             metaUpdates.thumbnailUrl = dataApiMeta.thumbnailUrl;
           }
-          if (!lecture.instructor && dataApiMeta.channelTitle) {
-            metaUpdates.instructor = dataApiMeta.channelTitle;
-          }
           if (dataApiMeta.duration && dataApiMeta.duration > 0) {
             metaUpdates.duration = dataApiMeta.duration;
             duration = dataApiMeta.duration;
@@ -82,9 +79,6 @@ export async function processLecture(lectureId) {
             if (!lecture.thumbnail_url && oEmbedMeta.thumbnail) {
               oEmbedUpdates.thumbnail_url = oEmbedMeta.thumbnail;
               oEmbedUpdates.thumbnailUrl = oEmbedMeta.thumbnail;
-            }
-            if (!lecture.instructor && oEmbedMeta.author) {
-              oEmbedUpdates.instructor = oEmbedMeta.author;
             }
             if (Object.keys(oEmbedUpdates).length > 0) {
               await lectureDoc.ref.update(oEmbedUpdates);

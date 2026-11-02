@@ -18,7 +18,6 @@ import {
   Copy,
   Film,
   Clock,
-  User,
   Calendar,
   BookOpen,
   Trash2,
@@ -188,7 +187,6 @@ export default function LectureDetails() {
             <h1 className="text-2xl font-bold tracking-tight">{lecture.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
               {lecture.course && <span className="inline-flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />{lecture.course}</span>}
-              {lecture.instructor && <span className="inline-flex items-center gap-1"><User className="w-3.5 h-3.5" />{lecture.instructor}</span>}
               <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{lecture.duration_label || formatDuration(lecture.duration)}</span>
               <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{relativeDate(lecture.lecture_date || lecture.created_date)}</span>
             </div>
@@ -352,7 +350,6 @@ function OverviewTab({ lecture, topics, transcripts }) {
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
               <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{lecture.duration_label || formatDuration(lecture.duration)}</span>
               {lecture.course && <span className="inline-flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />{lecture.course}</span>}
-              {lecture.instructor && <span className="inline-flex items-center gap-1"><User className="w-3.5 h-3.5" />{lecture.instructor}</span>}
               <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{relativeDate(lecture.lecture_date || lecture.created_date)}</span>
             </div>
           </div>

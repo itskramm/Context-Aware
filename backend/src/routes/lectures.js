@@ -224,7 +224,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { title, course, instructor, uploadedBy, tags, purpose } = req.body;
+    const { title, course, uploadedBy, tags, purpose } = req.body;
 
     if (!title || !uploadedBy) {
       // Cleanup uploaded file
@@ -247,7 +247,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const lectureData = {
       title,
       course: course || '',
-      instructor: instructor || '',
       file_url: fileUrl,
       videoUrl: fileUrl,
       uploadedBy,
@@ -307,7 +306,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 // Create lecture from YouTube URL
 router.post('/youtube', async (req, res) => {
   try {
-    const { youtubeUrl, title, course, instructor, tags, uploadedBy } = req.body;
+    const { youtubeUrl, title, course, tags, uploadedBy } = req.body;
 
     if (!youtubeUrl || !uploadedBy) {
       return res.status(400).json({ error: 'YouTube URL and uploadedBy are required' });
@@ -334,7 +333,6 @@ router.post('/youtube', async (req, res) => {
     const lectureData = {
       title: (title && title !== 'YouTube Lecture') ? title : (metadata?.title || title || 'YouTube Lecture'),
       course: course || '',
-      instructor: instructor || metadata?.channelTitle || '',
       tags: tags || [],
       file_url: youtubeUrl,
       videoUrl: youtubeUrl,
