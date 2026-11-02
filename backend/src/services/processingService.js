@@ -126,7 +126,18 @@ export async function processLecture(lectureId) {
     
     // If YouTube captions failed or not a YouTube video, use audio transcription
     if (!transcription) {
-      // Step 1: Extract audio
+      if (isYoutube) {
+        // For YouTube URLs, yt-dlp is blocked on cloud hosting (bot detection).
+        // There is no reliable free audio-download fallback for YouTube on Render.
+        // Mark the lecture as failed with a clear user-facing message.
+        throw new Error(
+          'Could not fetch captions for this YouTube video. ' +
+          'YouTube is blocking automated access from our server. ' +
+          'Please try a different video that has captions enabled, or upload an audio/video file directly.'
+        );
+      }
+
+      // Non-YouTube: extract audio and transcribe with Groq Whisper
       console.log('Step 1: Extracting audio...');
       audioPath = await extractAudio(lecture.videoUrl || lecture.file_url);
       duration = await getAudioDuration(audioPath);
