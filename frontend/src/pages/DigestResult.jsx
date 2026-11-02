@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/VideoPlayer";
+import YoutubePlayer from "@/components/YoutubePlayer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
   formatDuration,
   compactDuration,
   relativeDate,
+  getYoutubeId,
 } from "@/lib/lectureUtils";
 import DigestChat from "@/components/digest/DigestChat";
 import SegmentCard from "@/components/digest/SegmentCard";
@@ -95,15 +97,26 @@ export default function DigestResults() {
     document.getElementById("player")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // Transcript segments that fall within the digest's selected segments.
-  const digestTranscripts = (!segments.length || !transcripts.length) ? [] :
-    transcripts.filter((t) =>
-      segments.some((s) => t.timestamp >= s.start_time - 5 && t.timestamp <= s.end_time + 5)
-    );
+  // Format seconds to MM:SS for display
+  const fmtTime = (secs) => {
+    const s = Math.floor(secs || 0);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  };
+
+  // Show all transcripts (segments don't have reliable time ranges from AI)
+  // If segments have real timestamps, filter; otherwise show all
+  const hasRealTimes = segments.some((s) => s.start_time > 0 || s.end_time > 0);
+  const displayTranscripts = hasRealTimes
+    ? transcripts.filter((t) =>
+        segments.some((s) => t.timestamp >= s.start_time - 5 && t.timestamp <= s.end_time + 5)
+      )
+    : transcripts;
 
   const filteredTranscripts = search
-    ? digestTranscripts.filter((t) => t.text.toLowerCase().includes(search.toLowerCase()))
-    : digestTranscripts;
+    ? displayTranscripts.filter((t) => t.text?.toLowerCase().includes(search.toLowerCase()))
+    : displayTranscripts;
 
   const terms = new Set();
   (digest?.topics || []).forEach((t) => t.toLowerCase().split(/\s+/).forEach((w) => { if (w.length > 3) terms.add(w); }));
@@ -173,7 +186,22 @@ export default function DigestResults() {
         {/* Left: video + transcript */}
         <div className="lg:col-span-2 space-y-4">
           <div id="player">
-            <VideoPlayer ref={playerRef} fileUri={lecture?.videoUrl || lecture?.file_url} poster={lecture?.thumbnailUrl || lecture?.thumbnail_url} className="aspect-video" />
+            {(() => {
+              const youtubeId = getYoutubeId(lecture?.videoUrl || lecture?.file_url || "");
+              if (youtubeId) {
+                return <YoutubePlayer ref={playerRef} videoId={youtubeId} className="aspect-video" />;
+              }
+              const fileUrl = lecture?.file_url || lecture?.fileUrl || lecture?.videoUrl;
+              if (fileUrl) {
+                return <VideoPlayer ref={playerRef} fileUrl={fileUrl} poster={lecture?.thumbnailUrl || lecture?.thumbnail_url} className="aspect-video" />;
+              }
+              return (
+                <div className="aspect-video flex flex-col items-center justify-center bg-muted rounded-2xl gap-2">
+                  <Clapperboard className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No video available</p>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Transcript panel */}
@@ -192,7 +220,7 @@ export default function DigestResults() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  navigator.clipboard?.writeText(digestTranscripts.map((t) => `${t.timestamp_label} ${t.text}`).join("\n"));
+                  navigator.clipboard?.writeText(filteredTranscripts.map((t) => `[${fmtTime(t.timestamp)}] ${t.text}`).join("\n"));
                   toast({ title: "Transcript copied" });
                 }}
               >
@@ -201,16 +229,18 @@ export default function DigestResults() {
             </div>
             <div className="max-h-80 overflow-y-auto divide-y divide-border">
               {filteredTranscripts.length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">No matching transcript.</p>
+                <p className="p-6 text-sm text-muted-foreground text-center">
+                  {transcripts.length === 0 ? "No transcript available for this lecture." : "No matching transcript."}
+                </p>
               ) : (
-                filteredTranscripts.map((t) => (
+                filteredTranscripts.map((t, i) => (
                   <TranscriptRow
-                    key={t.id}
-                    timestampLabel={t.timestamp_label}
+                    key={t.id || i}
+                    timestampLabel={t.timestamp_label || fmtTime(t.timestamp)}
                     onSeek={() => seekTo(t.timestamp, null)}
                     measureKey={`${t.text}|${search}`}
                   >
-                    <Highlight text={t.text} terms={search.trim() ? [search.trim()] : highlightTerms} />
+                    <Highlight text={t.text || ""} terms={search.trim() ? [search.trim()] : highlightTerms} />
                   </TranscriptRow>
                 ))
               )}
