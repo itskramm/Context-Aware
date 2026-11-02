@@ -302,7 +302,7 @@ function ProcessingBanner({ lecture }) {
       </div>
     </div>
   );
-});
+}
 
 function OverviewTab({ lecture, topics, transcripts }) {
   const isYoutube = isYoutubeUrl(lecture.file_url);
