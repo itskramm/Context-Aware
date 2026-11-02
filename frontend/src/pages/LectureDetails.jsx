@@ -506,4 +506,4 @@ const TopicsTab = React.memo(function TopicsTab({ topics, seekTo }) {
       ))}
     </div>
   );
-}
+});
