@@ -59,7 +59,13 @@ export default function MyDigests() {
   const courses = [...set1].sort();
 
   const set2 = new Set();
-  digests.forEach((d) => (d.topics || []).forEach((t) => set2.add(t)));
+  digests.forEach((d) => {
+    const t = d.content?.topics || d.topics || [];
+    t.forEach((topic) => {
+      const name = typeof topic === "string" ? topic : topic.name || "";
+      if (name) set2.add(name);
+    });
+  });
   const topics = [...set2].sort();
 
   let filtered = digests;
@@ -67,12 +73,15 @@ export default function MyDigests() {
     const q = search.toLowerCase();
     filtered = filtered.filter((d) =>
       d.title?.toLowerCase().includes(q) ||
-      d.learning_goal?.toLowerCase().includes(q) ||
+      d.content?.summary?.toLowerCase().includes(q) ||
       lectures[d.lectureId || d.lecture_id]?.title?.toLowerCase().includes(q)
     );
   }
   if (course !== "all") filtered = filtered.filter((d) => lectures[d.lectureId || d.lecture_id]?.course === course);
-  if (topic !== "all") filtered = filtered.filter((d) => (d.topics || []).includes(topic));
+  if (topic !== "all") filtered = filtered.filter((d) => {
+    const t = d.content?.topics || d.topics || [];
+    return t.some((tp) => (typeof tp === "string" ? tp : tp.name || "") === topic);
+  });
   filtered = [...filtered].sort((a, b) => sort === "oldest"
     ? new Date(a.createdAt || a.created_date) - new Date(b.createdAt || b.created_date)
     : new Date(b.createdAt || b.created_date) - new Date(a.createdAt || a.created_date));
@@ -139,27 +148,49 @@ export default function MyDigests() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((d) => {
             const lec = lectures[d.lectureId || d.lecture_id];
+            // Data is stored nested under content by the backend
+            const topics = d.content?.topics || d.topics || [];
+            const summary = d.content?.summary || d.summary || "";
+            const keyPoints = d.content?.keyPoints || d.key_takeaways || [];
+            const topicBadges = topics.slice(0, 3).map((t) => typeof t === "string" ? t : t.name || t.title || "").filter(Boolean);
+            const lectureTitle = lec?.title || "Lecture";
+            const cardTitle = d.title || lectureTitle;
             return (
               <div key={d.id} className="group rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all flex flex-col">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Clapperboard className="w-5 h-5" />
+                {/* Thumbnail */}
+                {(lec?.thumbnailUrl || lec?.thumbnail_url) && (
+                  <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-muted">
+                    <img src={lec.thumbnailUrl || lec.thumbnail_url} alt={lectureTitle} className="w-full h-full object-cover" />
                   </div>
+                )}
+                <div className="flex items-start gap-3 mb-3">
+                  {!(lec?.thumbnailUrl || lec?.thumbnail_url) && (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <Clapperboard className="w-5 h-5" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
-                    <Link to={`/digests/${d.id}`} className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary">{d.title || lec?.title || "Digest"}</Link>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lec?.title ? `${lec.title}` : "Lecture"}</p>
+                    <Link to={`/digests/${d.id}`} className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary">{cardTitle}</Link>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lectureTitle !== cardTitle ? lectureTitle : (lec?.instructor || "")}</p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
-                  <Target className="w-3 h-3" /> <span className="line-clamp-1">{d.learning_goal || "—"}</span>
-                </p>
+                {/* Summary snippet */}
+                {summary && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2 leading-relaxed">{summary}</p>
+                )}
+                {/* First key point if no summary */}
+                {!summary && keyPoints[0] && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2 leading-relaxed">
+                    <span className="font-medium text-foreground">Key point: </span>{keyPoints[0]}
+                  </p>
+                )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{d.duration_label || compactDuration(d.duration)}</span>
+                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{compactDuration(lec?.duration)}</span>
                   <span>{relativeDate(d.createdAt || d.created_date)}</span>
                 </div>
-                {d.topics?.length > 0 && (
+                {topicBadges.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {d.topics.slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[11px]">{t}</Badge>)}
+                    {topicBadges.map((t) => <Badge key={t} variant="secondary" className="text-[11px]">{t}</Badge>)}
                   </div>
                 )}
                 <div className="flex gap-2 mt-auto pt-3 border-t border-border">
