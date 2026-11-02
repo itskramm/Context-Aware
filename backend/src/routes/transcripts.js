@@ -7,12 +7,15 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const db = getFirestore();
-    const { lecture_id, limit = 500 } = req.query;
+    const { lecture_id, lectureId, limit = 500 } = req.query;
+    
+    // Accept both snake_case and camelCase
+    const lecId = lecture_id || lectureId;
     
     let query = db.collection('transcripts');
     
-    if (lecture_id) {
-      query = query.where('lectureId', '==', lecture_id);
+    if (lecId) {
+      query = query.where('lectureId', '==', lecId);
     }
     
     query = query.orderBy('timestamp', 'asc').limit(parseInt(limit));
