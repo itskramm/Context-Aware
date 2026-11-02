@@ -55,7 +55,7 @@ export default function MyDigests() {
   useEffect(() => { load(); }, [load]);
 
   const set1 = new Set();
-  digests.forEach((d) => { const c = lectures[d.lecture_id]?.course; if (c) set1.add(c); });
+  digests.forEach((d) => { const c = lectures[d.lectureId || d.lecture_id]?.course; if (c) set1.add(c); });
   const courses = [...set1].sort();
 
   const set2 = new Set();
@@ -68,10 +68,10 @@ export default function MyDigests() {
     filtered = filtered.filter((d) =>
       d.title?.toLowerCase().includes(q) ||
       d.learning_goal?.toLowerCase().includes(q) ||
-      lectures[d.lecture_id]?.title?.toLowerCase().includes(q)
+      lectures[d.lectureId || d.lecture_id]?.title?.toLowerCase().includes(q)
     );
   }
-  if (course !== "all") filtered = filtered.filter((d) => lectures[d.lecture_id]?.course === course);
+  if (course !== "all") filtered = filtered.filter((d) => lectures[d.lectureId || d.lecture_id]?.course === course);
   if (topic !== "all") filtered = filtered.filter((d) => (d.topics || []).includes(topic));
   filtered = [...filtered].sort((a, b) => sort === "oldest"
     ? new Date(a.created_date) - new Date(b.created_date)
@@ -138,7 +138,7 @@ export default function MyDigests() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((d) => {
-            const lec = lectures[d.lecture_id];
+            const lec = lectures[d.lectureId || d.lecture_id];
             return (
               <div key={d.id} className="group rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all flex flex-col">
                 <div className="flex items-start gap-3 mb-3">

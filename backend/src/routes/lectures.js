@@ -5,6 +5,7 @@ import fs from 'fs';
 import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
 import { isYouTubeUrl, extractYouTubeId } from '../services/youtubeTranscriptService.js';
+import { fetchYouTubeMetadata } from '../services/youtubeDataApiService.js';
 
 const router = express.Router();
 
@@ -215,8 +216,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
-
 // Upload file endpoint
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -314,24 +313,33 @@ router.post('/youtube', async (req, res) => {
       return res.status(400).json({ error: 'Could not extract video ID from URL' });
     }
 
+    // Fetch rich metadata from YouTube Data API v3 (non-blocking on failure)
+    const metadata = await fetchYouTubeMetadata(videoId);
+
     const db = getFirestore();
-    
+
+    // Fallback thumbnail in case the API key is missing or the call fails
+    const fallbackThumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
     const lectureData = {
-      title: title || 'YouTube Lecture',
+      title: (title && title !== 'YouTube Lecture') ? title : (metadata?.title || title || 'YouTube Lecture'),
       course: course || '',
-      instructor: instructor || '',
+      instructor: instructor || metadata?.channelTitle || '',
       tags: tags || [],
       file_url: youtubeUrl,
       videoUrl: youtubeUrl,
-      thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      thumbnail_url: metadata?.thumbnailUrl || fallbackThumbnail,
+      thumbnailUrl: metadata?.thumbnailUrl || fallbackThumbnail,
       uploadedBy,
       status: 'pending',
       processing_status: 'pending',
       uploadedAt: new Date().toISOString(),
       created_date: new Date().toISOString(),
-      duration: 0,
+      duration: metadata?.duration || 0,
       viewCount: 0,
-      source: 'youtube'
+      source: 'youtube',
+      youtubeVideoId: videoId,
+      ...(metadata?.publishedAt ? { publishedAt: metadata.publishedAt } : {})
     };
 
     const lectureRef = await db.collection('lectures').add(lectureData);
@@ -357,3 +365,5 @@ router.post('/youtube', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+export default router;

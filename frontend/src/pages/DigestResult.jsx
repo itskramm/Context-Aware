@@ -48,10 +48,11 @@ export default function DigestResults() {
     try {
       const dig = await base44.entities.Digest.get(id);
       setDigest(dig);
+      const lecId = dig.lectureId || dig.lecture_id;
       const [lec, segs, trans] = await Promise.all([
-        base44.entities.Lecture.get(dig.lecture_id),
+        base44.entities.Lecture.get(lecId),
         base44.entities.DigestSegment.filter({ digest_id: id }, "start_time", 100),
-        base44.entities.Transcript.filter({ lecture_id: dig.lecture_id }, "timestamp", 500),
+        base44.entities.Transcript.filter({ lecture_id: lecId }, "timestamp", 500),
       ]);
       setLecture(lec);
       setSegments((segs || []).slice().sort((a, b) => (Number(b.relevance_score) || 0) - (Number(a.relevance_score) || 0)));
@@ -59,7 +60,7 @@ export default function DigestResults() {
       try {
         await base44.entities.UserInteraction.create({
           digest_id: id,
-          lecture_id: dig.lecture_id,
+          lecture_id: lecId,
           interaction_type: "digest_view",
         });
       } catch {}
