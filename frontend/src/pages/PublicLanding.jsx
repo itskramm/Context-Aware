@@ -5,140 +5,263 @@ import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
   GraduationCap,
-  AudioLines,
-  Sparkles,
+  BookOpen,
   Clock,
-  Upload,
-  MessageSquareText,
-  Clapperboard,
   Search,
-  ArrowRight } from
-"lucide-react";
+  Zap,
+  CheckCircle2,
+  Upload,
+  Sparkles,
+  FileText,
+  PlayCircle
+} from "lucide-react";
 
-const FEATURES = [
-{
-  icon: AudioLines,
-  title: "Multimodal Analysis",
-  desc: "Understand lecture audio, transcripts, and visual content."
-},
-{
-  icon: Sparkles,
-  title: "Personalized Digests",
-  desc: "Get lecture segments based on your learning goals."
-},
-{
-  icon: Clock,
-  title: "Faster Review",
-  desc: "Spend less time searching through long recordings."
-}];
+const USE_CASES = [
+  {
+    icon: Clock,
+    title: "Missed a lecture",
+    scenario: "Catch up on Tuesday's Organic Chemistry lecture before the lab",
+    action: "Watch only the synthesis reactions section"
+  },
+  {
+    icon: Search,
+    title: "Preparing for exams",
+    scenario: "Finals week and you have 8 hours of recorded lectures",
+    action: "Generate review digest covering key theorems and problem-solving methods"
+  },
+  {
+    icon: FileText,
+    title: "Working on assignments",
+    scenario: "Writing a paper on behavioral economics",
+    action: "Find all lecture segments discussing prospect theory and loss aversion"
+  }
+];
 
-
-const WORKFLOW = [
-{ icon: Upload, label: "Upload Lecture" },
-{ icon: MessageSquareText, label: "Tell Us What You Need" },
-{ icon: Sparkles, label: "Generate Digest" },
-{ icon: Clapperboard, label: "Review Important Sections" }];
-
+const HOW_IT_WORKS = [
+  { step: "1", title: "Upload your lecture", desc: "Video file or YouTube URL" },
+  { step: "2", title: "Get instant transcript", desc: "Searchable text with timestamps" },
+  { step: "3", title: "Navigate by topic", desc: "AI identifies key sections" },
+  { step: "4", title: "Generate custom digest", desc: "Tailored to your study goals" }
+];
 
 export default function PublicLanding() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl gradient-brand text-white flex items-center justify-center">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-background">
+      {/* Navigation */}
+      <header className="border-b border-border bg-white dark:bg-card">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#4A90E2] text-white flex items-center justify-center">
               <GraduationCap className="w-5 h-5" />
             </div>
-            <span className="font-semibold text-foreground tracking-tight">Context-Aware</span>
-          </div>
-          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[#1E3A5F] dark:text-foreground text-lg">Context Aware</span>
+          </Link>
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Button onClick={() => navigate(isAuthenticated ? "/dashboard" : "/login")}>
-              Get Started
+            <Button 
+              variant="outline" 
+              onClick={() => navigate("/login")}
+              className="hidden sm:inline-flex"
+            >
+              Log in
+            </Button>
+            <Button 
+              onClick={() => navigate(isAuthenticated ? "/dashboard" : "/register")}
+              className="bg-[#4A90E2] hover:bg-[#3A7BC8] text-white"
+            >
+              {isAuthenticated ? "Go to Dashboard" : "Start free"}
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-20 sm:pt-24 sm:pb-28">
-        <div className="hero-glow pointer-events-none absolute -top-40 -right-24 w-[34rem] h-[34rem] rounded-full blur-3xl" />
-        <div className="relative max-w-3xl">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-medium text-muted-foreground mb-6">
-            <Sparkles className="w-3.5 h-3.5" />
-            Context-aware lecture summarization
-          </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.05]">
-            Turn Long Lectures Into{" "}
-            <span className="gradient-heading">Personalized Study Digests</span>
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-6 pt-20 pb-16">
+        <div className="max-w-3xl">
+          <h1 className="text-5xl sm:text-6xl font-bold text-[#1E3A5F] dark:text-foreground leading-tight">
+            Find what matters in your lectures
           </h1>
-          <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-2xl">
-            Find the lecture content that matters most to you without watching the entire recording.
-            Tell us your learning goal, and we'll surface the segments that actually help.
+          <p className="mt-6 text-xl text-[#2D2D2D]/70 dark:text-muted-foreground leading-relaxed">
+            Turn hours of recorded lectures into focused study materials. Upload a lecture, tell us what you're studying for, and get the exact segments you need.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <Button size="lg" className="h-12 text-base" onClick={() => navigate(isAuthenticated ? "/dashboard" : "/login")}>
-              Get Started
-              <ArrowRight className="w-4 h-4 ml-1" />
+          <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <Button 
+              size="lg" 
+              onClick={() => navigate(isAuthenticated ? "/dashboard" : "/register")}
+              className="bg-[#4A90E2] hover:bg-[#3A7BC8] text-white h-12 px-8 text-base font-medium"
+            >
+              Start organizing lectures
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => navigate("/login")}
+              className="h-12 px-8 text-base"
+            >
+              See how it works
             </Button>
           </div>
         </div>
 
-        {/* Feature cards */}
-        <div className="mt-20 grid sm:grid-cols-3 gap-5">
-          {FEATURES.map((f) => {
-            const Icon = f.icon;
-            return (
-              <div key={f.title} className="rounded-2xl border border-border bg-card p-6">
-                <div className="w-11 h-11 rounded-xl gradient-brand-soft text-brand-end flex items-center justify-center mb-4">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-foreground">{f.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{f.desc}</p>
-              </div>);
-
-          })}
-        </div>
-
-        {/* Workflow */}
-        <div className="mt-20">
-          <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-8">
-            How it works
-          </h2>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-0">
-            {WORKFLOW.map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <React.Fragment key={step.label}>
-                  <div className="flex-1 flex flex-col items-center text-center px-3 py-5 rounded-xl border border-border bg-card">
-                    <div className="w-10 h-10 rounded-full gradient-brand-soft text-brand-end flex items-center justify-center mb-3">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">{step.label}</p>
-                  </div>
-                  {i < WORKFLOW.length - 1 &&
-                  <ArrowRight className="hidden sm:block w-5 h-5 text-muted-foreground mx-1 shrink-0 rotate-90 sm:rotate-0" />
-                  }
-                </React.Fragment>);
-
-            })}
+        {/* Stats Bar */}
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <div>
+            <p className="text-3xl font-bold text-[#1E3A5F] dark:text-foreground">6 seconds</p>
+            <p className="mt-1 text-sm text-[#2D2D2D]/60 dark:text-muted-foreground">Average transcript generation time</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-[#1E3A5F] dark:text-foreground">3-hour lecture</p>
+            <p className="mt-1 text-sm text-[#2D2D2D]/60 dark:text-muted-foreground">Reduced to 15-minute focused digest</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-[#1E3A5F] dark:text-foreground">100% free</p>
+            <p className="mt-1 text-sm text-[#2D2D2D]/60 dark:text-muted-foreground">No subscriptions or hidden costs</p>
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <GraduationCap className="w-4 h-4" />
-            <span>Context-Aware </span>
+      {/* Use Cases */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <h2 className="text-3xl font-bold text-[#1E3A5F] dark:text-foreground mb-12">
+          Built for real student scenarios
+        </h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {USE_CASES.map((useCase) => {
+            const Icon = useCase.icon;
+            return (
+              <div key={useCase.title} className="bg-white dark:bg-card border border-border rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-lg bg-[#7B68EE]/10 text-[#7B68EE] flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="font-semibold text-[#1E3A5F] dark:text-foreground text-lg mb-2">{useCase.title}</h3>
+                <p className="text-[#2D2D2D]/70 dark:text-muted-foreground text-sm mb-3">{useCase.scenario}</p>
+                <p className="text-[#4A90E2] text-sm font-medium">{useCase.action}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="bg-white dark:bg-card border-y border-border">
+        <div className="max-w-7xl mx-auto px-6 py-20">
+          <h2 className="text-3xl font-bold text-[#1E3A5F] dark:text-foreground mb-12">
+            Four steps to better studying
+          </h2>
+          <div className="grid md:grid-cols-4 gap-8">
+            {HOW_IT_WORKS.map((item) => (
+              <div key={item.step} className="relative">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-[#4A90E2] text-white flex items-center justify-center font-bold text-lg">
+                    {item.step}
+                  </div>
+                </div>
+                <h3 className="font-semibold text-[#1E3A5F] dark:text-foreground mb-2">{item.title}</h3>
+                <p className="text-sm text-[#2D2D2D]/70 dark:text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
           </div>
-          
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="grid md:grid-cols-2 gap-12">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#34D399]/10 text-[#059669] text-sm font-medium mb-4">
+              <Zap className="w-4 h-4" />
+              <span>Instant processing</span>
+            </div>
+            <h3 className="text-2xl font-bold text-[#1E3A5F] dark:text-foreground mb-4">
+              Upload and search within seconds
+            </h3>
+            <p className="text-[#2D2D2D]/70 dark:text-muted-foreground leading-relaxed mb-6">
+              Drop a video file or paste a YouTube URL. Get a complete, searchable transcript in under 10 seconds. No waiting, no processing queues.
+            </p>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">Supports MP4, MOV, and YouTube URLs</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">Accurate timestamps for every sentence</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">Search across all your lectures at once</span>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#7B68EE]/10 text-[#7B68EE] text-sm font-medium mb-4">
+              <Sparkles className="w-4 h-4" />
+              <span>AI-powered</span>
+            </div>
+            <h3 className="text-2xl font-bold text-[#1E3A5F] dark:text-foreground mb-4">
+              Custom digests for your goals
+            </h3>
+            <p className="text-[#2D2D2D]/70 dark:text-muted-foreground leading-relaxed mb-6">
+              Tell us what you're studying for—an exam, an assignment, or catching up on missed content. Get a personalized digest with only the segments that matter.
+            </p>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">AI identifies key topics automatically</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">Jump to any section with one click</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-[#34D399] mt-0.5 shrink-0" />
+                <span className="text-sm text-[#2D2D2D]/80 dark:text-muted-foreground">Export digests for later review</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-gradient-to-br from-[#1E3A5F] to-[#4A90E2] text-white">
+        <div className="max-w-4xl mx-auto px-6 py-20 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            Ready to study smarter?
+          </h2>
+          <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+            Join students who are spending less time searching and more time learning.
+          </p>
+          <Button 
+            size="lg"
+            onClick={() => navigate(isAuthenticated ? "/dashboard" : "/register")}
+            className="bg-white text-[#1E3A5F] hover:bg-gray-100 h-12 px-8 text-base font-medium"
+          >
+            Create free account
+          </Button>
+          <p className="mt-4 text-sm text-blue-100">
+            No credit card required · Free forever
+          </p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-white dark:bg-card">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-[#2D2D2D]/60 dark:text-muted-foreground">
+              <GraduationCap className="w-5 h-5" />
+              <span className="text-sm">Context Aware — Lecture management for students</span>
+            </div>
+            <p className="text-sm text-[#2D2D2D]/60 dark:text-muted-foreground">
+              © {new Date().getFullYear()} All rights reserved
+            </p>
+          </div>
         </div>
       </footer>
-    </div>);
-
+    </div>
+  );
 }
