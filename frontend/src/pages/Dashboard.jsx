@@ -170,16 +170,10 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
         <StatCard icon={Library} label="Total Lectures" value={lectures.length} />
         <StatCard icon={Clapperboard} label="Total Digests" value={digests.length} />
         <StatCard icon={Eye} label="Recently Viewed" value={lectures.filter((l) => l.view_count > 0).length} />
-        <StatCard
-          icon={Clock}
-          label="Review Time Saved"
-          value={compactDuration(totalSaved)}
-          sub="across all digests"
-        />
       </div>
 
       <ActivityAnalytics />

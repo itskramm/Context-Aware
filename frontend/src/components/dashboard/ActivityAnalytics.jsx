@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { BarChart3, Clock, CheckCircle2, Loader2, Library, Sparkles, TrendingUp, Timer } from 'lucide-react';
+import { BarChart3, Clock, CheckCircle2, Loader2, Library, Sparkles, Timer } from 'lucide-react';
 
 function fmtTime(seconds) {
   if (!seconds || seconds < 60) return `${Math.round(seconds || 0)}s`;
@@ -27,28 +27,12 @@ function MetricCard({ icon: Icon, label, value, sub, highlight }) {
   );
 }
 
-function MiniBar({ label, lectures, digests, maxVal }) {
-  const total = lectures + digests;
-  const barW = maxVal > 0 ? Math.round((total / maxVal) * 100) : 0;
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] text-muted-foreground w-8 shrink-0">{label}</span>
-      <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
-        <div className="h-full flex gap-px">
-          <div className="bg-primary/70 rounded-l-full transition-all duration-300" style={{ width: `${maxVal > 0 ? (lectures / maxVal) * 100 : 0}%` }} />
-          <div className="bg-primary/30 rounded-r-full transition-all duration-300" style={{ width: `${maxVal > 0 ? (digests / maxVal) * 100 : 0}%` }} />
-        </div>
-      </div>
-      <span className="text-[11px] text-muted-foreground w-4 text-right">{total || ''}</span>
-    </div>
-  );
-}
-
 export default function ActivityAnalytics() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState(null);
+  const [period, setPeriod] = useState('daily'); // daily, weekly, monthly
 
   useEffect(() => {
     loadAnalytics();
@@ -70,81 +54,115 @@ export default function ActivityAnalytics() {
   if (loading) {
     return (
       <div className="rounded-2xl border border-border bg-card p-6 mb-10">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-5 h-5" /> Analytics</h3>
+        <h3 className="font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-5 h-5" /> Activity</h3>
         <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       </div>
     );
   }
 
   if (error || !analytics) {
-    return null; // Silently hide if analytics fails
+    return null;
   }
 
   const daily = analytics.dailyActivity || [];
-  const maxDailyVal = daily.reduce((m, d) => Math.max(m, d.lectures + d.digests), 1);
+  const todayData = daily[daily.length - 1] || { lectures: 0, digests: 0 };
+  const savedToday = analytics.totalTimeSavedSeconds > 0 
+    ? fmtTime(Math.round(analytics.totalTimeSavedSeconds / Math.max(analytics.totalDigests, 1)))
+    : '0m';
 
-  // Savings percentage
-  const savingsPct = analytics.totalLectureSeconds > 0
-    ? Math.round((analytics.totalTimeSavedSeconds / analytics.totalLectureSeconds) * 100)
-    : 0;
+  // Chart data based on period
+  const chartData = daily;
+  const maxVal = chartData.reduce((m, d) => Math.max(m, d.lectures + d.digests), 1);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 mb-10">
-      <h3 className="font-semibold text-foreground mb-5 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5" />
-        Analytics
-      </h3>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Activity</h3>
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <button
+            onClick={() => setPeriod('daily')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              period === 'daily' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Daily
+          </button>
+          <button
+            onClick={() => setPeriod('weekly')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              period === 'weekly' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            onClick={() => setPeriod('monthly')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              period === 'monthly' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Monthly
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground mb-6">Lectures added and digests generated over time.</p>
 
-      {/* Key metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <MetricCard
-          icon={Library}
-          label="Total lecture time"
-          value={fmtTime(analytics.totalLectureSeconds)}
-          sub={`${analytics.totalLectures} lecture${analytics.totalLectures !== 1 ? 's' : ''}`}
-        />
-        <MetricCard
-          icon={Sparkles}
-          label="Total digest time"
-          value={fmtTime(analytics.totalDigestSeconds)}
-          sub={`${analytics.totalDigests} digest${analytics.totalDigests !== 1 ? 's' : ''}`}
-        />
-        <MetricCard
-          icon={Timer}
-          label="Time saved"
-          value={fmtTime(analytics.totalTimeSavedSeconds)}
-          sub={savingsPct > 0 ? `${savingsPct}% less time studying` : 'Start digesting to save time'}
-          highlight={analytics.totalTimeSavedSeconds > 0}
-        />
-        <MetricCard
-          icon={CheckCircle2}
-          label="Completion rate"
-          value={`${analytics.completionRate}%`}
-          sub="Lectures fully processed"
-        />
+      {/* Today's stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="rounded-xl bg-background/50 border border-border p-4">
+          <p className="text-xs text-muted-foreground mb-1">Lectures today</p>
+          <p className="text-3xl font-bold">{todayData.lectures}</p>
+        </div>
+        <div className="rounded-xl bg-background/50 border border-border p-4">
+          <p className="text-xs text-muted-foreground mb-1">Digests today</p>
+          <p className="text-3xl font-bold">{todayData.digests}</p>
+        </div>
+        <div className="rounded-xl bg-background/50 border border-border p-4">
+          <p className="text-xs text-muted-foreground mb-1">Saved today</p>
+          <p className="text-3xl font-bold">{savedToday}</p>
+        </div>
       </div>
 
-      {/* 7-day activity chart */}
-      {daily.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
-            <TrendingUp className="w-3.5 h-3.5" />
-            Last 7 days
-            <span className="ml-auto flex items-center gap-3">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary/70 inline-block" /> Lectures</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary/30 inline-block" /> Digests</span>
-            </span>
-          </p>
-          <div className="space-y-1.5">
-            {daily.map((d) => (
-              <MiniBar key={d.date} label={d.label} lectures={d.lectures} digests={d.digests} maxVal={maxDailyVal} />
-            ))}
-          </div>
-          {analytics.thisWeek > 0 && (
-            <p className="text-xs text-primary mt-3 font-medium">{analytics.weekTrend}</p>
-          )}
+      {/* Chart */}
+      <div className="relative h-48 mb-4">
+        <div className="absolute inset-0 flex items-end justify-between gap-1 pb-6">
+          {chartData.map((d, i) => {
+            const total = d.lectures + d.digests;
+            const height = maxVal > 0 ? (total / maxVal) * 100 : 0;
+            const lectureH = maxVal > 0 ? (d.lectures / maxVal) * 100 : 0;
+            const digestH = maxVal > 0 ? (d.digests / maxVal) * 100 : 0;
+            return (
+              <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex flex-col-reverse items-center gap-0.5" style={{ height: '100%' }}>
+                  {d.lectures > 0 && (
+                    <div className="w-full bg-foreground rounded-t" style={{ height: `${lectureH}%` }} />
+                  )}
+                  {d.digests > 0 && (
+                    <div className="w-full bg-primary rounded-t" style={{ height: `${digestH}%` }} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-muted-foreground">
+          {chartData.map((d) => (
+            <span key={d.date} className="flex-1 text-center">{d.label}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm bg-foreground" />
+          Lectures
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm bg-primary" />
+          Digests
+        </span>
+      </div>
     </div>
   );
 }
