@@ -64,12 +64,18 @@ export async function askAboutLecture(lectureId, question, conversationHistory =
   const segments = snapshot.docs.map((doc) => doc.data());
 
   // Build transcript text for the system prompt
-  const transcriptText = segments
+  // Cap at 12000 chars to stay within 8000 TPM: system + history + question + answer
+  const MAX_TRANSCRIPT_CHARS = 12000;
+  const rawTranscript = segments
     .map((seg) => {
       const secs = typeof seg.timestamp === 'number' ? seg.timestamp : 0;
       return `[${formatSeconds(secs)}] ${seg.text || ''}`;
     })
     .join('\n');
+
+  const transcriptText = rawTranscript.length > MAX_TRANSCRIPT_CHARS
+    ? rawTranscript.substring(0, MAX_TRANSCRIPT_CHARS) + '\n... [transcript truncated]'
+    : rawTranscript;
 
   const systemPrompt = `You are a helpful teaching assistant for a lecture. Answer questions about the lecture content using the transcript provided below.
 
@@ -82,10 +88,13 @@ Guidelines:
 Lecture Transcript:
 ${transcriptText || '(No transcript available for this lecture.)'}`;
 
-  // Build messages array
+  // Keep only the last 4 conversation turns to avoid token bloat
+  const recentHistory = conversationHistory.slice(-4);
+
+  // Build messages array with capped history
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...conversationHistory,
+    ...recentHistory,
     { role: 'user', content: question },
   ];
 
