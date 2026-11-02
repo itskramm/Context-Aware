@@ -1,6 +1,12 @@
 import Groq from 'groq-sdk';
 import fs from 'fs';
 import path from 'path';
+import ffmpeg from 'fluent-ffmpeg';
+
+// Groq Whisper file size limit is 25MB
+const GROQ_MAX_BYTES = 24 * 1024 * 1024; // 24MB to be safe
+// Chunk duration in seconds (10 minutes per chunk at 32kbps ≈ ~2.4MB)
+const CHUNK_DURATION_SEC = 10 * 60;
 
 // Lazy initialization - check API key only when actually used
 let groq = null;
@@ -22,38 +28,152 @@ function getGroqClient() {
 }
 
 /**
+ * Re-encode audio to low-bitrate mono MP3 to stay under Groq's 25MB limit.
+ * 32kbps mono = ~14MB/hour, well within limits.
+ */
+async function compressAudio(inputPath) {
+  const outputPath = inputPath.replace(/\.[^.]+$/, '') + '-compressed.mp3';
+  await new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .audioChannels(1)       // mono
+      .audioBitrate('32k')    // 32kbps keeps file tiny
+      .toFormat('mp3')
+      .on('end', resolve)
+      .on('error', reject)
+      .save(outputPath);
+  });
+  return outputPath;
+}
+
+/**
+ * Split audio into chunks using ffmpeg, each CHUNK_DURATION_SEC long.
+ */
+async function splitAudio(inputPath, totalDuration) {
+  const tempDir = path.dirname(inputPath);
+  const chunks = [];
+  let start = 0;
+  let index = 0;
+  while (start < totalDuration) {
+    const chunkPath = path.join(tempDir, `chunk-${Date.now()}-${index}.mp3`);
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .setStartTime(start)
+        .setDuration(CHUNK_DURATION_SEC)
+        .audioChannels(1)
+        .audioBitrate('32k')
+        .toFormat('mp3')
+        .on('end', resolve)
+        .on('error', reject)
+        .save(chunkPath);
+    });
+    chunks.push({ path: chunkPath, startOffset: start });
+    start += CHUNK_DURATION_SEC;
+    index++;
+  }
+  return chunks;
+}
+
+/**
+ * Get audio duration in seconds using ffprobe.
+ */
+function getFileDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, meta) => {
+      if (err) reject(err);
+      else resolve(meta.format.duration || 0);
+    });
+  });
+}
+
+/**
+ * Transcribe a single file via Groq Whisper.
+ */
+async function transcribeFile(filePath, groqClient) {
+  const transcription = await groqClient.audio.transcriptions.create({
+    file: fs.createReadStream(filePath),
+    model: 'whisper-large-v3',
+    language: 'en',
+    response_format: 'verbose_json',
+    temperature: 0.0
+  });
+  return transcription;
+}
+
+/**
  * Transcribe audio using Groq's Whisper (FREE!)
+ * Handles large files by compressing to 32kbps mono and chunking if still too large.
  * @param {string} audioFilePath - Path to audio file
  * @returns {Promise<Object>} - Transcript with text and metadata
  */
 export async function transcribeWithGroq(audioFilePath) {
+  const groqClient = getGroqClient();
+  if (!groqClient) {
+    throw new Error('Groq API key not configured');
+  }
+
+  let workingPath = audioFilePath;
+  let compressed = null;
+  const tempFiles = [];
+
   try {
     console.log('Transcribing with Groq Whisper (FREE)...');
-    
-    const groq = getGroqClient();
-    if (!groq) {
-      throw new Error('Groq API key not configured');
+
+    // Step 1: Compress to 32kbps mono to reduce size
+    console.log('Compressing audio to 32kbps mono...');
+    compressed = await compressAudio(audioFilePath);
+    tempFiles.push(compressed);
+    workingPath = compressed;
+
+    const fileSize = fs.statSync(workingPath).size;
+    console.log(`Compressed audio size: ${(fileSize / 1024 / 1024).toFixed(1)}MB`);
+
+    let allSegments = [];
+    let fullText = '';
+    let totalDuration = 0;
+
+    if (fileSize <= GROQ_MAX_BYTES) {
+      // Small enough — send directly
+      const result = await transcribeFile(workingPath, groqClient);
+      fullText = result.text;
+      allSegments = result.segments || [];
+      totalDuration = result.duration || 0;
+    } else {
+      // Too large — split into 10-minute chunks
+      console.log('File too large for single request, splitting into chunks...');
+      const duration = await getFileDuration(workingPath);
+      const chunks = await splitAudio(workingPath, duration);
+      tempFiles.push(...chunks.map(c => c.path));
+
+      for (const chunk of chunks) {
+        console.log(`Transcribing chunk at ${Math.floor(chunk.startOffset / 60)}m...`);
+        const result = await transcribeFile(chunk.path, groqClient);
+        fullText += (fullText ? ' ' : '') + result.text;
+        // Offset segment timestamps by chunk start
+        const offsetSegments = (result.segments || []).map(seg => ({
+          ...seg,
+          start: (seg.start || 0) + chunk.startOffset,
+          end: (seg.end || 0) + chunk.startOffset,
+        }));
+        allSegments.push(...offsetSegments);
+        totalDuration = chunk.startOffset + (result.duration || 0);
+      }
     }
-    
-    const transcription = await groq.audio.transcriptions.create({
-      file: fs.createReadStream(audioFilePath),
-      model: 'whisper-large-v3', // Best Whisper model, FREE!
-      language: 'en', // or omit for auto-detection
-      response_format: 'verbose_json', // includes timestamps
-      temperature: 0.0 // More deterministic
-    });
 
     console.log('Groq transcription complete!');
-    
     return {
-      text: transcription.text,
-      segments: transcription.segments || [],
-      duration: transcription.duration || 0,
-      language: transcription.language || 'en'
+      text: fullText,
+      segments: allSegments,
+      duration: totalDuration,
+      language: 'en'
     };
   } catch (error) {
     console.error('Groq transcription error:', error);
     throw new Error(`Groq transcription failed: ${error.message}`);
+  } finally {
+    // Clean up temp files
+    for (const f of tempFiles) {
+      try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
+    }
   }
 }
 
