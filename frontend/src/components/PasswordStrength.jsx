@@ -1,6 +1,6 @@
 import React from "react";
 import { Check, X } from "lucide-react";
-import { checkPasswordRequirements, passwordLevel } from "@/lib/authValidations";
+import { checkPasswordRequirements, getPasswordStrength } from "@/lib/authValidations";
 
 const REQUIREMENT_LABELS = {
   length: "Minimum 8 characters (8–16)",
@@ -15,7 +15,13 @@ const REQUIREMENT_LABELS = {
 export default function PasswordStrength({ password = "" }) {
   const checks = checkPasswordRequirements(password);
   const metCount = Object.values(checks).filter(Boolean).length;
-  const level = passwordLevel(password);
+  const strength = getPasswordStrength(password);
+  
+  // Map score to level
+  let level = "weak";
+  if (strength.score >= 5) level = "strong";
+  else if (strength.score >= 3) level = "average";
+  
   const levelLabel = level === "strong" ? "Strong" : level === "average" ? "Average" : "Weak";
   const barColor =
     level === "strong"
