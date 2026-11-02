@@ -39,69 +39,76 @@ export async function processLecture(lectureId) {
     
     if (isYoutube) {
       console.log('🎬 YouTube video detected - attempting to fetch captions...');
-      
+
+      // --- Shared metadata enrichment (runs once, before any tier attempt) ---
+      // Skip the Data API call if the route already wrote enriched metadata
+      // (indicated by youtubeVideoId being set AND duration > 0).
+      // This prevents a double quota spend on every YouTube submission.
+      const videoId = extractYouTubeId(lecture.videoUrl || lecture.file_url);
+      const routeAlreadyEnriched = !!(lecture.youtubeVideoId && lecture.duration > 0);
+
+      if (videoId && !routeAlreadyEnriched) {
+        const dataApiMeta = await fetchYouTubeMetadata(videoId);
+        if (dataApiMeta) {
+          const metaUpdates = {};
+          if ((!lecture.title || lecture.title === 'Untitled' || lecture.title === 'YouTube Lecture') && dataApiMeta.title) {
+            metaUpdates.title = dataApiMeta.title;
+          }
+          if (!lecture.thumbnail_url && dataApiMeta.thumbnailUrl) {
+            metaUpdates.thumbnail_url = dataApiMeta.thumbnailUrl;
+            metaUpdates.thumbnailUrl = dataApiMeta.thumbnailUrl;
+          }
+          if (!lecture.instructor && dataApiMeta.channelTitle) {
+            metaUpdates.instructor = dataApiMeta.channelTitle;
+          }
+          if (dataApiMeta.duration && dataApiMeta.duration > 0) {
+            metaUpdates.duration = dataApiMeta.duration;
+            duration = dataApiMeta.duration;
+          }
+          if (dataApiMeta.publishedAt) {
+            metaUpdates.publishedAt = dataApiMeta.publishedAt;
+          }
+          if (Object.keys(metaUpdates).length > 0) {
+            await lectureDoc.ref.update(metaUpdates);
+          }
+        } else {
+          // Fall back to oEmbed metadata if Data API unavailable
+          const oEmbedMeta = await getYouTubeMetadata(videoId);
+          if (oEmbedMeta) {
+            const oEmbedUpdates = {};
+            if ((!lecture.title || lecture.title === 'Untitled' || lecture.title === 'YouTube Lecture') && oEmbedMeta.title) {
+              oEmbedUpdates.title = oEmbedMeta.title;
+            }
+            if (!lecture.thumbnail_url && oEmbedMeta.thumbnail) {
+              oEmbedUpdates.thumbnail_url = oEmbedMeta.thumbnail;
+              oEmbedUpdates.thumbnailUrl = oEmbedMeta.thumbnail;
+            }
+            if (!lecture.instructor && oEmbedMeta.author) {
+              oEmbedUpdates.instructor = oEmbedMeta.author;
+            }
+            if (Object.keys(oEmbedUpdates).length > 0) {
+              await lectureDoc.ref.update(oEmbedUpdates);
+            }
+          }
+        }
+      }
+
       try {
         // Tier 1: Attempt YouTube captions (FREE, instant, no download)
         console.log('Tier 1: Attempting YouTube captions...');
         transcription = await fetchYouTubeTranscript(lecture.videoUrl || lecture.file_url);
         console.log('✅ Successfully fetched YouTube captions!');
         
-        // Estimate duration from last segment
-        if (transcription.segments && transcription.segments.length > 0) {
+        // Estimate duration from last segment (only used if Data API duration is unavailable)
+        if (transcription.segments && transcription.segments.length > 0 && duration === 0) {
           const lastSegment = transcription.segments[transcription.segments.length - 1];
           duration = Math.round(lastSegment.end || lastSegment.start || 0);
           await lectureDoc.ref.update({ 
             duration: duration,
             processing_status: 'transcribing'
           });
-        }
-        
-        // Enrich metadata using YouTube Data API v3 (preferred — returns duration)
-        const videoId = extractYouTubeId(lecture.videoUrl || lecture.file_url);
-        if (videoId) {
-          const dataApiMeta = await fetchYouTubeMetadata(videoId);
-          if (dataApiMeta) {
-            const updates = {};
-            if ((!lecture.title || lecture.title === 'Untitled' || lecture.title === 'YouTube Lecture') && dataApiMeta.title) {
-              updates.title = dataApiMeta.title;
-            }
-            if (!lecture.thumbnail_url && dataApiMeta.thumbnailUrl) {
-              updates.thumbnail_url = dataApiMeta.thumbnailUrl;
-              updates.thumbnailUrl = dataApiMeta.thumbnailUrl;
-            }
-            if (!lecture.instructor && dataApiMeta.channelTitle) {
-              updates.instructor = dataApiMeta.channelTitle;
-            }
-            if (dataApiMeta.duration && dataApiMeta.duration > 0) {
-              updates.duration = dataApiMeta.duration;
-              duration = dataApiMeta.duration;
-            }
-            if (dataApiMeta.publishedAt) {
-              updates.publishedAt = dataApiMeta.publishedAt;
-            }
-            if (Object.keys(updates).length > 0) {
-              await lectureDoc.ref.update(updates);
-            }
-          } else {
-            // Fall back to oEmbed metadata if Data API unavailable
-            const oEmbedMeta = await getYouTubeMetadata(videoId);
-            if (oEmbedMeta) {
-              const updates = {};
-              if ((!lecture.title || lecture.title === 'Untitled') && oEmbedMeta.title) {
-                updates.title = oEmbedMeta.title;
-              }
-              if (!lecture.thumbnail_url && oEmbedMeta.thumbnail) {
-                updates.thumbnail_url = oEmbedMeta.thumbnail;
-                updates.thumbnailUrl = oEmbedMeta.thumbnail;
-              }
-              if (!lecture.instructor && oEmbedMeta.author) {
-                updates.instructor = oEmbedMeta.author;
-              }
-              if (Object.keys(updates).length > 0) {
-                await lectureDoc.ref.update(updates);
-              }
-            }
-          }
+        } else {
+          await lectureDoc.ref.update({ processing_status: 'transcribing' });
         }
         
       } catch (error) {
