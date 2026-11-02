@@ -6,30 +6,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/components/ui/use-toast';
-import { Upload, Link as LinkIcon, Loader2, Video, CheckCircle2, X } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
+import { toast } from '@/components/ui/use-toast';
+import { Upload, Link as LinkIcon, Loader2, Video, CheckCircle2, X, Youtube, FileVideo, AlertCircle, Info } from 'lucide-react';
 
 export default function UploadLecture() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [uploadMode, setUploadMode] = useState('url'); // 'url' or 'file'
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   
   // Form states
   const [title, setTitle] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
+  const [course, setCourse] = useState('');
+  const [instructor, setInstructor] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [tags, setTags] = useState('');
-  const [purpose, setPurpose] = useState('general');
   const [file, setFile] = useState(null);
 
   const validateFile = (selectedFile) => {
     if (!selectedFile) return null;
 
-    // Check file size (max 500MB)
-    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+    const maxSize = 500 * 1024 * 1024; // 500MB
     if (selectedFile.size > maxSize) {
       toast({
         title: 'File too large',
@@ -39,12 +44,11 @@ export default function UploadLecture() {
       return null;
     }
 
-    // Check file type
     const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg', 'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a'];
     if (!allowedTypes.includes(selectedFile.type)) {
       toast({
         title: 'Invalid file type',
-        description: 'Please upload a video or audio file (MP4, MOV, AVI, WebM, OGG, MP3, WAV, M4A)',
+        description: 'Supported: MP4, MOV, AVI, WebM, OGG, MP3, WAV, M4A',
         variant: 'destructive'
       });
       return null;
@@ -56,49 +60,26 @@ export default function UploadLecture() {
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     const validFile = validateFile(selectedFile);
-    if (validFile) {
-      setFile(validFile);
-    }
-  };
-
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    if (validFile) setFile(validFile);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
-
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles.length > 0) {
       const validFile = validateFile(droppedFiles[0]);
-      if (validFile) {
-        setFile(validFile);
-      }
+      if (validFile) setFile(validFile);
     }
   };
 
-  const handleUrlSubmit = async (e) => {
+  const handleYoutubeSubmit = async (e) => {
     e.preventDefault();
     
-    if (!title || !videoUrl) {
+    if (!youtubeUrl || !title) {
       toast({
         title: 'Missing fields',
-        description: 'Please provide both title and video URL',
+        description: 'YouTube URL and title are required',
         variant: 'destructive'
       });
       return;
@@ -106,32 +87,38 @@ export default function UploadLecture() {
 
     setLoading(true);
     try {
-      const response = await base44.lectures.create({
-        title,
-        videoUrl, // Backend expects camelCase
-        uploadedBy: user.id, // Backend expects camelCase
-        tags: tags ? tags.split(',').map(t => t.trim()) : [],
-        purpose
+      // Call the /api/lectures/youtube endpoint
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/lectures/youtube`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          youtubeUrl,
+          title,
+          course,
+          instructor,
+          tags: tags ? tags.split(',').map(t => t.trim()) : [],
+          uploadedBy: user.id
+        })
       });
 
-      toast({
-        title: 'Success!',
-        description: 'Lecture created successfully. Processing will begin shortly.',
-      });
-
-      // Navigate to the lecture detail page
-      if (response.lecture && response.lecture.id) {
-        navigate(`/lectures/${response.lecture.id}`);
-      } else if (response.id) {
-        navigate(`/lectures/${response.id}`);
-      } else {
-        navigate('/lectures');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add YouTube lecture');
       }
+
+      const data = await response.json();
+      toast({ title: 'Success!', description: 'YouTube lecture added. Processing captions...' });
+      navigate(`/lectures/${data.lecture.id}`);
     } catch (error) {
-      console.error('Upload error:', error);
       toast({
-        title: 'Upload failed',
-        description: error.message || 'Failed to create lecture. Please try again.',
+        title: 'Failed',
+        description: error.message || 'Could not add YouTube video',
         variant: 'destructive'
       });
     } finally {
@@ -145,7 +132,7 @@ export default function UploadLecture() {
     if (!title || !file) {
       toast({
         title: 'Missing fields',
-        description: 'Please provide both title and video file',
+        description: 'Title and file are required',
         variant: 'destructive'
       });
       return;
@@ -155,350 +142,332 @@ export default function UploadLecture() {
     setUploadProgress(0);
 
     try {
-      console.log('Starting file upload...');
-      
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', file);
       formData.append('title', title);
+      formData.append('course', course);
+      formData.append('instructor', instructor);
       formData.append('uploadedBy', user.id);
       formData.append('tags', tags);
-      formData.append('purpose', purpose);
 
-      console.log('FormData created:', {
-        fileName: file.name,
-        fileSize: file.size,
-        title,
-        uploadedBy: user.id
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('token');
+      
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(percentComplete);
+        }
       });
 
-      // Get API URL and token
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const token = localStorage.getItem('token');
-      const uploadUrl = `${apiUrl}/lectures/upload`;
-      
-      console.log('Uploading to:', uploadUrl);
-
-      // Use fetch with AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-
-      try {
-        const response = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: formData,
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        console.log('Response received:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-          throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Upload successful! Response data:', data);
-
-        setUploadProgress(100);
-
-        toast({
-          title: 'Upload successful!',
-          description: 'Your file has been uploaded and processing will begin shortly.',
-        });
-
-        // Navigate immediately - don't wait for processing
-        const lectureId = data.lecture?.id || data.id;
-        console.log('Navigating to lecture:', lectureId);
-        
-        if (lectureId) {
-          navigate(`/lectures/${lectureId}`);
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 201) {
+          const response = JSON.parse(xhr.responseText);
+          toast({ title: 'Success!', description: 'File uploaded. Processing started.' });
+          navigate(`/lectures/${response.lecture.id}`);
         } else {
-          console.warn('No lecture ID in response, navigating to /lectures');
-          navigate('/lectures');
+          throw new Error(xhr.responseText || 'Upload failed');
         }
+        setLoading(false);
+      });
 
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Upload timed out after 2 minutes');
-        }
-        throw fetchError;
-      }
+      xhr.addEventListener('error', () => {
+        toast({
+          title: 'Upload failed',
+          description: 'Network error. Please try again.',
+          variant: 'destructive'
+        });
+        setLoading(false);
+      });
+
+      xhr.open('POST', `${apiUrl}/lectures/upload`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
 
     } catch (error) {
-      console.error('Upload error:', error);
       toast({
         title: 'Upload failed',
-        description: error.message || 'Failed to upload file. Please try again.',
+        description: error.message,
         variant: 'destructive'
       });
-    } finally {
       setLoading(false);
-      setUploadProgress(0);
     }
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-3xl mx-auto">
+    <div className="container max-w-4xl mx-auto p-6 sm:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Upload Lecture</h1>
-        <p className="text-muted-foreground mt-2">
-          Upload a recording or paste a YouTube link to analyze and generate digests.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">Upload Lecture</h1>
+        <p className="text-muted-foreground mt-2">Add a new lecture from YouTube or upload a file</p>
       </div>
 
-      {/* Warning banner */}
-      <div className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
-        <div className="flex gap-3">
-          <div className="text-amber-600 dark:text-amber-500 mt-0.5">⚠️</div>
-          <div>
-            <p className="font-semibold text-amber-900 dark:text-amber-200 text-sm">Upload study-related videos only</p>
-            <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-              Use lecture recordings, lessons, tutorials, or other course material. Music videos, news clips, vlogs, and entertainment content are not supported and won't produce useful transcripts or digests.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <Tabs value={uploadMode} onValueChange={setUploadMode} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-muted">
-          <TabsTrigger value="file">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload file
+      <Tabs defaultValue="youtube" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="youtube">
+            <Youtube className="w-4 h-4 mr-2" />
+            YouTube URL
           </TabsTrigger>
-          <TabsTrigger value="url">
-            <LinkIcon className="w-4 h-4 mr-2" />
-            Paste link
+          <TabsTrigger value="file">
+            <FileVideo className="w-4 h-4 mr-2" />
+            Upload File
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="file" className="mt-6">
-          <form onSubmit={handleFileSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="fileTitle">Lecture Title *</Label>
-              <Input
-                id="fileTitle"
-                placeholder="Introduction to Machine Learning"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
+        {/* YouTube Tab */}
+        <TabsContent value="youtube">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add from YouTube</CardTitle>
+              <CardDescription>
+                Paste a YouTube URL to instantly fetch captions and metadata
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleYoutubeSubmit}>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    We'll automatically fetch captions if available, or transcribe the audio
+                  </AlertDescription>
+                </Alert>
 
-            <div className="space-y-2">
-              <Label>Video/Audio File *</Label>
-              {file ? (
-                <div className="border border-border rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Video className="w-10 h-10 text-muted-foreground" />
-                    <div>
+                <div className="space-y-2">
+                  <Label htmlFor="youtube-url">YouTube URL *</Label>
+                  <Input
+                    id="youtube-url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label htmlFor="youtube-title">Title *</Label>
+                  <Input
+                    id="youtube-title"
+                    placeholder="Introduction to Machine Learning"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="youtube-course">Course</Label>
+                    <Input
+                      id="youtube-course"
+                      placeholder="CS 101"
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="youtube-instructor">Instructor</Label>
+                    <Input
+                      id="youtube-instructor"
+                      placeholder="Prof. Smith"
+                      value={instructor}
+                      onChange={(e) => setInstructor(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Label htmlFor="youtube-tags">Tags (optional)</Label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Comma-separated tags for organization</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Input
+                    id="youtube-tags"
+                    placeholder="machine learning, python, algorithms"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Adding lecture...
+                    </>
+                  ) : (
+                    <>
+                      <Youtube className="w-4 h-4 mr-2" />
+                      Add YouTube Lecture
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </TabsContent>
+
+        {/* File Upload Tab */}
+        <TabsContent value="file">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload File</CardTitle>
+              <CardDescription>
+                Upload a video or audio file (max 500MB)
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleFileSubmit}>
+              <CardContent className="space-y-4">
+                {/* Drag & Drop Zone */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                >
+                  {file ? (
+                    <div className="space-y-2">
+                      <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
                       <p className="font-medium">{file.name}</p>
                       <p className="text-sm text-muted-foreground">
                         {(file.size / (1024 * 1024)).toFixed(2)} MB
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFile(null)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
                     </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
+                      <p className="text-sm font-medium">Drag & drop your file here</p>
+                      <p className="text-xs text-muted-foreground">or click to browse</p>
+                      <input
+                        type="file"
+                        accept="video/*,audio/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="file-input"
+                        disabled={loading}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('file-input').click()}
+                        disabled={loading}
+                      >
+                        Choose File
+                      </Button>
+                      <div className="flex flex-wrap justify-center gap-1 mt-3">
+                        <Badge variant="secondary">MP4</Badge>
+                        <Badge variant="secondary">MOV</Badge>
+                        <Badge variant="secondary">AVI</Badge>
+                        <Badge variant="secondary">MP3</Badge>
+                        <Badge variant="secondary">WAV</Badge>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {loading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading...</span>
+                      <span className="font-medium">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFile(null)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <label
-                  className={`border-2 border-dashed rounded-lg p-12 text-center transition-all cursor-pointer block ${
-                    isDragging
-                      ? 'border-primary bg-primary/10 scale-[1.02]'
-                      : 'border-border bg-muted/20 hover:bg-muted/30'
-                  }`}
-                  onDragEnter={handleDragEnter}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    type="file"
-                    accept="video/*,audio/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
+                )}
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label htmlFor="file-title">Title *</Label>
+                  <Input
+                    id="file-title"
+                    placeholder="Introduction to Calculus"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={loading}
                   />
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors ${
-                    isDragging ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
-                  }`}>
-                    <Upload className={`w-8 h-8 transition-transform ${isDragging ? 'scale-110' : ''}`} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="file-course">Course</Label>
+                    <Input
+                      id="file-course"
+                      placeholder="MATH 201"
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      disabled={loading}
+                    />
                   </div>
-                  <p className="text-lg font-semibold mb-2">
-                    {isDragging ? 'Drop your file here' : 'Drag and drop your video here'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-4">or click to browse files</p>
-                  <p className="text-xs text-muted-foreground">Supported: MP4, MOV, AVI, WebM, OGG, MP3, WAV · Max 500MB</p>
-                </label>
-              )}
-            </div>
 
-            {loading && uploadProgress > 0 && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="file-instructor">Instructor</Label>
+                    <Input
+                      id="file-instructor"
+                      placeholder="Dr. Johnson"
+                      value={instructor}
+                      onChange={(e) => setInstructor(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
+
+                <div className="space-y-2">
+                  <Label htmlFor="file-tags">Tags (optional)</Label>
+                  <Input
+                    id="file-tags"
+                    placeholder="calculus, limits, derivatives"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="fileTags">Tags (optional)</Label>
-              <Input
-                id="fileTags"
-                placeholder="machine learning, AI, python"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Separate tags with commas
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="filePurpose">Purpose</Label>
-              <select
-                id="filePurpose"
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="general">General Learning</option>
-                <option value="exam">Exam Preparation</option>
-                <option value="review">Quick Review</option>
-                <option value="research">Research</option>
-              </select>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={loading || !file} className="flex-1">
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {uploadProgress > 0 ? `Uploading ${uploadProgress}%...` : 'Processing...'}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Upload & Create Lecture
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/lectures')}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full" disabled={loading || !file}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload & Process
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
         </TabsContent>
-
-        <TabsContent value="url" className="mt-6">
-          <form onSubmit={handleUrlSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Lecture Title *</Label>
-              <Input
-                id="title"
-                placeholder="Introduction to Machine Learning"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="videoUrl">Video URL *</Label>
-              <Input
-                id="videoUrl"
-                type="url"
-                placeholder="https://youtube.com/watch?v=..."
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                required
-              />
-              <p className="text-sm text-muted-foreground">
-                Supports YouTube, Vimeo, and direct video URLs
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags (optional)</Label>
-              <Input
-                id="tags"
-                placeholder="machine learning, AI, python"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Separate tags with commas
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="purpose">Purpose</Label>
-              <select
-                id="purpose"
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="general">General Learning</option>
-                <option value="exam">Exam Preparation</option>
-                <option value="review">Quick Review</option>
-                <option value="research">Research</option>
-              </select>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Create Lecture
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/lectures')}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </TabsContent>
-
       </Tabs>
     </div>
   );
