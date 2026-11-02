@@ -29,8 +29,6 @@ import {
   STATUS_STYLES,
   formatDuration,
   relativeDate,
-  PROCESSING_STAGES,
-  stageIndex,
   isYoutubeUrl,
   getYoutubeId,
 } from "@/lib/lectureUtils";
@@ -274,31 +272,38 @@ export default function LectureDetails() {
 
 // Memoized components for better performance
 function ProcessingBanner({ lecture }) {
-  const idx = stageIndex(lecture.processing_status);
+  // Map backend status values to percentage and human label
+  const STATUS_PROGRESS = {
+    uploading:        { pct: 10, label: "Uploading…" },
+    pending:          { pct: 15, label: "Queued…" },
+    processing:       { pct: 25, label: "Processing…" },
+    extracting_audio: { pct: 40, label: "Extracting audio…" },
+    transcribing:     { pct: 65, label: "Transcribing…" },
+    generating_transcript: { pct: 65, label: "Transcribing…" },
+    identifying_segments:  { pct: 80, label: "Identifying topics…" },
+    preparing_index:  { pct: 90, label: "Finalizing…" },
+    ready:            { pct: 100, label: "Ready" },
+    failed:           { pct: 100, label: "Failed" },
+  };
+
+  const status = lecture.processing_status || "processing";
+  const { pct, label } = STATUS_PROGRESS[status] || { pct: 30, label: "Processing…" };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-8">
       <div className="flex items-center gap-3 mb-5">
         <Loader2 className="w-5 h-5 animate-spin text-primary" />
         <div>
-          <p className="font-semibold">{STATUS_LABELS[lecture.processing_status]}…</p>
+          <p className="font-semibold">{label}</p>
           <p className="text-sm text-muted-foreground">Your lecture is being analyzed. This page will update shortly.</p>
         </div>
+        <span className="ml-auto text-2xl font-bold text-primary tabular-nums">{pct}%</span>
       </div>
-      <div className="space-y-2.5">
-        {PROCESSING_STAGES.map((s, i) => {
-          const done = i < idx;
-          const current = i === idx;
-          return (
-            <div key={s.key} className="flex items-center gap-3 text-sm">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs ${
-                done ? "bg-green-500 text-white" : current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-              }`}>
-                {done ? "✓" : i + 1}
-              </div>
-              <span className={done || current ? "text-foreground font-medium" : "text-muted-foreground"}>{s.label}</span>
-            </div>
-          );
-        })}
+      <div className="w-full bg-muted rounded-full h-2.5">
+        <div
+          className="bg-primary h-2.5 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
