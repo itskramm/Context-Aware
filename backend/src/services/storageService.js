@@ -1,48 +1,36 @@
-import { getStorage } from 'firebase-admin/storage';
+import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
- * Uploads a local file to Firebase Storage and returns its public URL.
+ * Uploads a local file to Cloudinary and returns its secure URL.
  * @param {string} localFilePath - Absolute path to the local temp file
- * @param {string} originalName - Original filename (used in the Storage path)
+ * @param {string} originalName - Original filename
  * @param {string} mimeType - MIME type of the file
- * @returns {Promise<string>} Public download URL
+ * @returns {Promise<string>} Cloudinary secure_url
  */
 export async function uploadFileToStorage(localFilePath, originalName, mimeType) {
-  let bucket;
   try {
-    bucket = getStorage().bucket();
-  } catch (err) {
-    throw new Error(
-      'Firebase Storage bucket not configured. Please create a Storage bucket in the Firebase console at https://console.firebase.google.com/project/contextaware-507ad/storage'
-    );
-  }
-
-  // Verify the bucket exists / is accessible
-  const [exists] = await bucket.exists().catch(() => [false]);
-  if (!exists) {
-    throw new Error(
-      'Firebase Storage bucket not configured. Please create a Storage bucket in the Firebase console at https://console.firebase.google.com/project/contextaware-507ad/storage'
-    );
-  }
-
-  const timestamp = Date.now();
-  const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const destination = `lectures/${timestamp}-${safeName}`;
-
-  try {
-    await bucket.upload(localFilePath, {
-      destination,
-      metadata: { contentType: mimeType }
+    const result = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: 'video',
+      folder: 'lectures',
+      use_filename: true,
+      unique_filename: true,
     });
 
-    const file = bucket.file(destination);
-    await file.makePublic();
-
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${destination}`;
-    return publicUrl;
+    console.log(`File uploaded to Cloudinary: ${result.secure_url}`);
+    return result.secure_url;
+  } catch (uploadError) {
+    throw new Error(`Cloudinary upload failed: ${uploadError.message}`);
   } finally {
-    // Always clean up the local temp file
+    // Always delete the local temp file
     try {
       if (fs.existsSync(localFilePath)) {
         fs.unlinkSync(localFilePath);
