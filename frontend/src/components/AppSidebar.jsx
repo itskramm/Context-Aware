@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  GraduationCap
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -68,15 +69,15 @@ export default function AppSidebar() {
     <aside className="w-64 h-screen bg-card border-r border-border flex flex-col sticky top-0">
       {/* Logo/Brand */}
       <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
+        <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <div className="w-10 h-10 rounded-xl gradient-brand text-white flex items-center justify-center">
+            <GraduationCap className="w-5 h-5" />
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">Context-Aware</h1>
             <p className="text-xs text-muted-foreground">Personalized study digests</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
