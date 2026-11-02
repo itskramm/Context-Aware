@@ -7,7 +7,8 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const db = getFirestore();
-    const { userId, lectureId, status, limit = 50 } = req.query;
+    const { userId, lectureId: lectureIdParam, lecture_id, status, limit = 50 } = req.query;
+    const lectureId = lectureIdParam || lecture_id;
     
     let query = db.collection('digests');
     

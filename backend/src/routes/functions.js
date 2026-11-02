@@ -82,7 +82,7 @@ router.post('/deleteLecture', async (req, res) => {
 router.post('/generateDigest', async (req, res) => {
   try {
     const db = getFirestore();
-    const { lecture_id, learning_goal, topics = [] } = req.body;
+    const { lecture_id, learning_goal, topics = [], use_history = false } = req.body;
     
     if (!lecture_id || !learning_goal) {
       return res.status(400).json({ error: 'lecture_id and learning_goal are required' });
@@ -117,7 +117,8 @@ Learning Goal: ${learning_goal}
 ${topics.length > 0 ? `Topics of Interest: ${topics.join(', ')}` : ''}
 
 Transcript:
-${fullTranscript.substring(0, 100000)} // Limit to ~100k chars for API
+// Limit to ~100k chars for API
+${fullTranscript.substring(0, 100000)}
 
 Respond in JSON format:
 {
@@ -177,6 +178,7 @@ Respond in JSON format:
       title: digestData.title,
       learning_goal: learning_goal,
       topics: digestData.topics || topics,
+      use_history: use_history,
       relevance_explanation: digestData.relevance_explanation,
       key_takeaways: digestData.key_takeaways || [],
       duration: totalDuration,

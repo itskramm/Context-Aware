@@ -97,6 +97,7 @@ export default function GenerateDigest() {
         lecture_id: lectureId,
         learning_goal: learningGoal.trim(),
         topics,
+        use_history: useHistory,
       });
 
       clearInterval(stageTimer);
