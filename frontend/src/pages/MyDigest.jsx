@@ -74,8 +74,8 @@ export default function MyDigests() {
   if (course !== "all") filtered = filtered.filter((d) => lectures[d.lectureId || d.lecture_id]?.course === course);
   if (topic !== "all") filtered = filtered.filter((d) => (d.topics || []).includes(topic));
   filtered = [...filtered].sort((a, b) => sort === "oldest"
-    ? new Date(a.created_date) - new Date(b.created_date)
-    : new Date(b.created_date) - new Date(a.created_date));
+    ? new Date(a.createdAt || a.created_date) - new Date(b.createdAt || b.created_date)
+    : new Date(b.createdAt || b.created_date) - new Date(a.createdAt || a.created_date));
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this digest?")) return;
@@ -146,8 +146,8 @@ export default function MyDigests() {
                     <Clapperboard className="w-5 h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <Link to={`/digests/${d.id}`} className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary">{d.title}</Link>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lec?.title || "Lecture"}</p>
+                    <Link to={`/digests/${d.id}`} className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary">{d.title || lec?.title || "Digest"}</Link>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{lec?.title ? `${lec.title}` : "Lecture"}</p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
@@ -155,7 +155,7 @@ export default function MyDigests() {
                 </p>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                   <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{d.duration_label || compactDuration(d.duration)}</span>
-                  <span>{relativeDate(d.created_date)}</span>
+                  <span>{relativeDate(d.createdAt || d.created_date)}</span>
                 </div>
                 {d.topics?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">

@@ -49,13 +49,29 @@ export default function DigestResults() {
       const dig = await base44.entities.Digest.get(id);
       setDigest(dig);
       const lecId = dig.lectureId || dig.lecture_id;
-      const [lec, segs, trans] = await Promise.all([
+      if (!lecId) {
+        setLoading(false);
+        return;
+      }
+      // Segments live inside digest.content.chapters or digest.content.topics
+      // Map them to the shape SegmentCard expects
+      const contentTopics = dig.content?.topics || [];
+      const contentChapters = dig.content?.chapters || [];
+      const mappedSegs = (contentChapters.length ? contentChapters : contentTopics).map((t, i) => ({
+        id: `seg-${i}`,
+        title: typeof t === "string" ? t : t.name || t.title || `Section ${i + 1}`,
+        description: typeof t === "object" ? t.description || "" : "",
+        start_time: typeof t === "object" ? (t.startTime ?? t.start_time ?? 0) : 0,
+        end_time: typeof t === "object" ? (t.endTime ?? t.end_time ?? 0) : 0,
+        relevance_score: 1,
+      }));
+
+      const [lec, trans] = await Promise.all([
         base44.entities.Lecture.get(lecId),
-        base44.entities.DigestSegment.filter({ digest_id: id }, "start_time", 100),
         base44.entities.Transcript.filter({ lecture_id: lecId }, "timestamp", 500),
       ]);
       setLecture(lec);
-      setSegments((segs || []).slice().sort((a, b) => (Number(b.relevance_score) || 0) - (Number(a.relevance_score) || 0)));
+      setSegments(mappedSegs);
       setTranscripts(trans || []);
       try {
         await base44.entities.UserInteraction.create({
@@ -150,14 +166,14 @@ export default function DigestResults() {
         <MetaCard icon={Clock} label="Digest duration" value={digest.duration_label || compactDuration(digest.duration)} />
         <MetaCard icon={Clock} label="Lecture length" value={digest.lecture_duration_label || formatDuration(digest.lecture_duration)} />
         <MetaCard icon={Sparkles} label="Time saved" value={digest.estimated_time_saved_label || compactDuration(digest.estimated_time_saved)} />
-        <MetaCard icon={Calendar} label="Created" value={relativeDate(digest.created_date)} />
+        <MetaCard icon={Calendar} label="Created" value={relativeDate(digest.created_date || digest.createdAt)} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left: video + transcript */}
         <div className="lg:col-span-2 space-y-4">
           <div id="player">
-            <VideoPlayer ref={playerRef} fileUri={lecture?.file_url} poster={lecture?.thumbnail_url} className="aspect-video" />
+            <VideoPlayer ref={playerRef} fileUri={lecture?.videoUrl || lecture?.file_url} poster={lecture?.thumbnailUrl || lecture?.thumbnail_url} className="aspect-video" />
           </div>
 
           {/* Transcript panel */}
@@ -207,13 +223,13 @@ export default function DigestResults() {
               <Lightbulb className="w-4 h-4" /> Key Takeaways
             </h3>
             <ul className="space-y-2.5">
-              {(digest.key_takeaways || []).map((k, i) => (
+              {(digest.content?.keyPoints || digest.key_takeaways || []).map((k, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm">
                   <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <span className="text-foreground leading-relaxed">{k}</span>
                 </li>
               ))}
-              {(!digest.key_takeaways || digest.key_takeaways.length === 0) && (
+              {(!(digest.content?.keyPoints || digest.key_takeaways)?.length) && (
                 <li className="text-sm text-muted-foreground">No takeaways generated.</li>
               )}
             </ul>
@@ -240,12 +256,14 @@ export default function DigestResults() {
           {/* Why selected */}
           <div className="rounded-2xl border border-border bg-card p-4">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-              <HelpCircle className="w-4 h-4" /> Why these sections were selected
+              <HelpCircle className="w-4 h-4" /> Summary
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{digest.relevance_explanation}</p>
-            {digest.topics?.length > 0 && (
+            <p className="text-sm text-muted-foreground leading-relaxed">{digest.content?.summary || digest.relevance_explanation || "No summary available."}</p>
+            {(digest.content?.topics || digest.topics)?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
-                {digest.topics.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+                {(digest.content?.topics || digest.topics).map((t, i) => (
+                  <Badge key={i} variant="secondary">{typeof t === "string" ? t : t.name || t}</Badge>
+                ))}
               </div>
             )}
           </div>
