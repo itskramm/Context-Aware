@@ -255,9 +255,10 @@ class Base44Client {
       filter: async (filters, sort = 'timestamp', limit = 500) => {
         const params = { ...filters, sort, limit };
         try {
-          return this.get('/transcripts', params);
+          const response = await axiosInstance.get('/transcripts', { params });
+          return response || [];
         } catch (error) {
-          console.warn('Transcript.filter not implemented:', error);
+          console.warn('Transcript.filter error:', error);
           return [];
         }
       },
@@ -266,9 +267,10 @@ class Base44Client {
       filter: async (filters, sort = 'start_time', limit = 100) => {
         const params = { ...filters, sort, limit };
         try {
-          return this.get('/topics', params);
+          const response = await axiosInstance.get('/topics', { params });
+          return response || [];
         } catch (error) {
-          console.warn('Topic.filter not implemented:', error);
+          console.warn('Topic.filter error:', error);
           return [];
         }
       },
