@@ -2,6 +2,7 @@ import { getFirestore } from '../config/database.js';
 import { extractAudio, getAudioDuration } from './audioService.js';
 import { transcribeWithGroq, generateSummaryWithGroq, generateQuestionsWithGroq } from './groqService.js';
 import { fetchYouTubeTranscript, isYouTubeUrl, extractYouTubeId, getYouTubeMetadata } from './youtubeTranscriptService.js';
+import { fetchYouTubeMetadata } from './youtubeDataApiService.js';
 import fs from 'fs';
 
 /**
@@ -40,7 +41,8 @@ export async function processLecture(lectureId) {
       console.log('🎬 YouTube video detected - attempting to fetch captions...');
       
       try {
-        // Try to get YouTube transcript (FREE, instant, no download!)
+        // Tier 1: Attempt YouTube captions (FREE, instant, no download)
+        console.log('Tier 1: Attempting YouTube captions...');
         transcription = await fetchYouTubeTranscript(lecture.videoUrl || lecture.file_url);
         console.log('✅ Successfully fetched YouTube captions!');
         
@@ -54,23 +56,50 @@ export async function processLecture(lectureId) {
           });
         }
         
-        // Try to get metadata (title, thumbnail) if not provided
+        // Enrich metadata using YouTube Data API v3 (preferred — returns duration)
         const videoId = extractYouTubeId(lecture.videoUrl || lecture.file_url);
         if (videoId) {
-          const metadata = await getYouTubeMetadata(videoId);
-          if (metadata) {
+          const dataApiMeta = await fetchYouTubeMetadata(videoId);
+          if (dataApiMeta) {
             const updates = {};
-            if (!lecture.title || lecture.title === 'Untitled') {
-              updates.title = metadata.title;
+            if ((!lecture.title || lecture.title === 'Untitled' || lecture.title === 'YouTube Lecture') && dataApiMeta.title) {
+              updates.title = dataApiMeta.title;
             }
-            if (!lecture.thumbnail_url && metadata.thumbnail) {
-              updates.thumbnail_url = metadata.thumbnail;
+            if (!lecture.thumbnail_url && dataApiMeta.thumbnailUrl) {
+              updates.thumbnail_url = dataApiMeta.thumbnailUrl;
+              updates.thumbnailUrl = dataApiMeta.thumbnailUrl;
             }
-            if (!lecture.instructor && metadata.author) {
-              updates.instructor = metadata.author;
+            if (!lecture.instructor && dataApiMeta.channelTitle) {
+              updates.instructor = dataApiMeta.channelTitle;
+            }
+            if (dataApiMeta.duration && dataApiMeta.duration > 0) {
+              updates.duration = dataApiMeta.duration;
+              duration = dataApiMeta.duration;
+            }
+            if (dataApiMeta.publishedAt) {
+              updates.publishedAt = dataApiMeta.publishedAt;
             }
             if (Object.keys(updates).length > 0) {
               await lectureDoc.ref.update(updates);
+            }
+          } else {
+            // Fall back to oEmbed metadata if Data API unavailable
+            const oEmbedMeta = await getYouTubeMetadata(videoId);
+            if (oEmbedMeta) {
+              const updates = {};
+              if ((!lecture.title || lecture.title === 'Untitled') && oEmbedMeta.title) {
+                updates.title = oEmbedMeta.title;
+              }
+              if (!lecture.thumbnail_url && oEmbedMeta.thumbnail) {
+                updates.thumbnail_url = oEmbedMeta.thumbnail;
+                updates.thumbnailUrl = oEmbedMeta.thumbnail;
+              }
+              if (!lecture.instructor && oEmbedMeta.author) {
+                updates.instructor = oEmbedMeta.author;
+              }
+              if (Object.keys(updates).length > 0) {
+                await lectureDoc.ref.update(updates);
+              }
             }
           }
         }
@@ -78,14 +107,13 @@ export async function processLecture(lectureId) {
       } catch (error) {
         console.log('⚠️  YouTube captions not available:', error.message);
         
-        if (error.message === 'CAPTIONS_DISABLED') {
-          console.log('📥 Falling back to audio download + Groq transcription...');
-          // Fall through to regular transcription
-        } else if (error.message === 'VIDEO_UNAVAILABLE') {
+        if (error.message === 'VIDEO_UNAVAILABLE') {
           throw new Error('YouTube video is unavailable or private');
-        } else {
-          console.log('📥 Falling back to audio download + Groq transcription...');
         }
+        
+        // Tier 2 (audio fallback) logging
+        console.log('Tier 2: Captions unavailable, falling back to Groq Whisper transcription...');
+        // Fall through to the !transcription block below
       }
     }
     
