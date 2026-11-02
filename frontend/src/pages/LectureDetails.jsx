@@ -215,7 +215,7 @@ export default function LectureDetails() {
 
       {/* Video player or processing state */}
       {isReady ? (
-        <VideoPlayer ref={playerRef} fileUri={lecture.file_url} poster={lecture.thumbnail_url} className="aspect-video" />
+        <VideoPlayer ref={playerRef} fileUrl={lecture.file_url} poster={lecture.thumbnail_url} className="aspect-video" />
       ) : isProcessing ? (
         <ProcessingBanner lecture={lecture} />
       ) : (
