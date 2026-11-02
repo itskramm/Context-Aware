@@ -245,6 +245,7 @@ export async function processLecture(lectureId) {
     await lectureDoc.ref.update({ 
       status: 'completed',
       processing_status: 'ready', // Frontend expects "ready"
+      summary: summary.summary || '', // Save summary to lecture for description display
       transcriptId: transcriptRef.id,
       digestId: digestRef.id,
       processingCompletedAt: new Date().toISOString()

@@ -312,7 +312,13 @@ function ProcessingBanner({ lecture }) {
 function OverviewTab({ lecture, topics, transcripts }) {
   const isYoutube = isYoutubeUrl(lecture.file_url);
   const videoId = getYoutubeId(lecture.file_url);
-  const transcriptPreview = transcripts.slice(0, 3).map((t) => t.text).join(" ");
+  // Use the AI-generated summary from the digest if available,
+  // otherwise show a short excerpt (max 200 chars) from the first transcript segment
+  const summary = lecture.summary || lecture.description;
+  const transcriptExcerpt = transcripts[0]?.text
+    ? transcripts[0].text.slice(0, 200) + (transcripts[0].text.length > 200 ? "…" : "")
+    : null;
+  const descriptionText = summary || transcriptExcerpt || "No description available.";
 
   return (
     <div className="grid sm:grid-cols-2 gap-5">
@@ -357,7 +363,7 @@ function OverviewTab({ lecture, topics, transcripts }) {
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="font-semibold mb-2">Description</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {lecture.description || (transcriptPreview ? transcriptPreview : "No description available.")}
+          {descriptionText}
         </p>
         {lecture.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
