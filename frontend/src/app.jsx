@@ -25,7 +25,7 @@ import GenerateDigest from '@/pages/GenerateDigest';
 import MyDigests from '@/pages/MyDigest';
 import DigestResults from '@/pages/DigestResult';
 import SearchPage from '@/pages/SearchPage';
-import Profile from '@/pages/Landing';
+import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
 import UserManagement from '@/pages/UserManagement';
 import AdminPanel from '@/pages/Adminpanel';
