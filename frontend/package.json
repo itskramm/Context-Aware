@@ -45,6 +45,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.3.1",
     "embla-carousel-react": "^8.0.0",
+    "firebase": "^10.14.1",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.344.0",
     "moment": "^2.30.1",
