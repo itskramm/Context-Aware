@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
+import { isYouTubeUrl, extractYouTubeId } from '../services/youtubeTranscriptService.js';
 
 const router = express.Router();
 
@@ -223,7 +224,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { title, uploadedBy, tags, purpose } = req.body;
+    const { title, course, instructor, uploadedBy, tags, purpose } = req.body;
 
     if (!title || !uploadedBy) {
       // Cleanup uploaded file
@@ -236,16 +237,20 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     // Create lecture with file path
     const lectureData = {
       title,
-      videoUrl: req.file.path, // Store local file path
+      course: course || '',
+      instructor: instructor || '',
+      file_url: req.file.path, // Store local file path
+      videoUrl: req.file.path, // For backward compatibility
       uploadedBy,
       tags: tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [],
       purpose: purpose || 'general',
-      status: 'processing',
-      processing_status: 'processing', // Add frontend-compatible field
+      status: 'pending',
+      processing_status: 'uploading',
       uploadedAt: new Date().toISOString(),
-      created_date: new Date().toISOString(), // Add frontend-compatible field
+      created_date: new Date().toISOString(),
       duration: 0,
       viewCount: 0,
+      source: 'upload',
       fileMetadata: {
         originalName: req.file.originalname,
         size: req.file.size,

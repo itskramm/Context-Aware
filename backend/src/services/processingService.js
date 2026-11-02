@@ -1,6 +1,7 @@
 import { getFirestore } from '../config/database.js';
 import { extractAudio, getAudioDuration } from './audioService.js';
 import { transcribeWithGroq, generateSummaryWithGroq, generateQuestionsWithGroq } from './groqService.js';
+import { fetchYouTubeTranscript, isYouTubeUrl, extractYouTubeId, getYouTubeMetadata } from './youtubeTranscriptService.js';
 import fs from 'fs';
 
 /**
@@ -28,17 +29,84 @@ export async function processLecture(lectureId) {
       processingStartedAt: new Date().toISOString()
     });
     
-    // Step 1: Extract audio
-    console.log('Step 1: Extracting audio...');
-    const audioPath = await extractAudio(lecture.videoUrl);
-    const duration = await getAudioDuration(audioPath);
+    let transcription;
+    let audioPath = null;
+    let duration = 0;
     
-    // Update duration
-    await lectureDoc.ref.update({ duration: Math.round(duration) });
+    // Check if it's a YouTube URL and try to get captions first
+    const isYoutube = isYouTubeUrl(lecture.videoUrl || lecture.file_url);
     
-    // Step 2: Transcribe with Groq (FREE!)
-    console.log('Step 2: Transcribing with Groq Whisper (FREE)...');
-    const transcription = await transcribeWithGroq(audioPath);
+    if (isYoutube) {
+      console.log('🎬 YouTube video detected - attempting to fetch captions...');
+      
+      try {
+        // Try to get YouTube transcript (FREE, instant, no download!)
+        transcription = await fetchYouTubeTranscript(lecture.videoUrl || lecture.file_url);
+        console.log('✅ Successfully fetched YouTube captions!');
+        
+        // Estimate duration from last segment
+        if (transcription.segments && transcription.segments.length > 0) {
+          const lastSegment = transcription.segments[transcription.segments.length - 1];
+          duration = Math.round(lastSegment.end || lastSegment.start || 0);
+          await lectureDoc.ref.update({ 
+            duration: duration,
+            processing_status: 'transcribing'
+          });
+        }
+        
+        // Try to get metadata (title, thumbnail) if not provided
+        const videoId = extractYouTubeId(lecture.videoUrl || lecture.file_url);
+        if (videoId) {
+          const metadata = await getYouTubeMetadata(videoId);
+          if (metadata) {
+            const updates = {};
+            if (!lecture.title || lecture.title === 'Untitled') {
+              updates.title = metadata.title;
+            }
+            if (!lecture.thumbnail_url && metadata.thumbnail) {
+              updates.thumbnail_url = metadata.thumbnail;
+            }
+            if (!lecture.instructor && metadata.author) {
+              updates.instructor = metadata.author;
+            }
+            if (Object.keys(updates).length > 0) {
+              await lectureDoc.ref.update(updates);
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.log('⚠️  YouTube captions not available:', error.message);
+        
+        if (error.message === 'CAPTIONS_DISABLED') {
+          console.log('📥 Falling back to audio download + Groq transcription...');
+          // Fall through to regular transcription
+        } else if (error.message === 'VIDEO_UNAVAILABLE') {
+          throw new Error('YouTube video is unavailable or private');
+        } else {
+          console.log('📥 Falling back to audio download + Groq transcription...');
+        }
+      }
+    }
+    
+    // If YouTube captions failed or not a YouTube video, use audio transcription
+    if (!transcription) {
+      // Step 1: Extract audio
+      console.log('Step 1: Extracting audio...');
+      audioPath = await extractAudio(lecture.videoUrl || lecture.file_url);
+      duration = await getAudioDuration(audioPath);
+      
+      // Update duration
+      await lectureDoc.ref.update({ 
+        duration: Math.round(duration),
+        processing_status: 'extracting_audio'
+      });
+      
+      // Step 2: Transcribe with Groq (FREE!)
+      console.log('Step 2: Transcribing with Groq Whisper (FREE)...');
+      await lectureDoc.ref.update({ processing_status: 'transcribing' });
+      transcription = await transcribeWithGroq(audioPath);
+    }
     
     // Save transcript segments
     const transcriptBatch = db.batch();
@@ -136,8 +204,8 @@ export async function processLecture(lectureId) {
       processingCompletedAt: new Date().toISOString()
     });
     
-    // Cleanup audio file
-    if (fs.existsSync(audioPath)) {
+    // Cleanup audio file (only if we downloaded one)
+    if (audioPath && fs.existsSync(audioPath)) {
       fs.unlinkSync(audioPath);
       console.log('Cleaned up temp audio file');
     }
