@@ -18,13 +18,16 @@ router.get('/dashboard', async (req, res) => {
     }
 
     // Fetch all lectures and digests (limit 500 each — enough for any user)
+    // Note: Removed orderBy to avoid requiring Firestore index
     const [lecturesSnap, digestsSnap] = await Promise.all([
-      lecturesRef.orderBy('uploadedAt', 'desc').limit(500).get(),
-      digestsRef.orderBy('createdAt',   'desc').limit(500).get(),
+      lecturesRef.limit(500).get(),
+      digestsRef.limit(500).get(),
     ]);
 
-    const lectures = lecturesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const digests  = digestsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const lectures = lecturesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.uploadedAt || b.created_date || '').localeCompare(a.uploadedAt || a.created_date || ''));
+    const digests  = digestsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt || b.created_date || '').localeCompare(a.createdAt || a.created_date || ''));
 
     // --- Totals ---
     const totalLectures = lectures.length;
