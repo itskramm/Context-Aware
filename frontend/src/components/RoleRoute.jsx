@@ -1,23 +1,24 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
-import { getAccessType } from '@/lib/authValidations';
+import React from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
+import { getAccessType } from "@/lib/authValidations";
 
+// Route guard for role-based pages. The pages behind this gate also verify the
+// access type on the backend before returning any data, so hiding the page is
+// not the only line of defense.
 export default function RoleRoute({ allow = [] }) {
-  const { user, isLoadingAuth } = useAuth();
+  const { user, isLoadingAuth, authChecked } = useAuth();
 
-  if (isLoadingAuth) {
+  if (!authChecked || isLoadingAuth) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
       </div>
     );
   }
 
-  const accessType = getAccessType(user);
-  const hasAccess = allow.length === 0 || allow.includes(accessType);
-
-  if (!hasAccess) {
-    return <Navigate to="/dashboard" replace />;
+  if (!allow.includes(getAccessType(user))) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
