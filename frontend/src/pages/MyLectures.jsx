@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -68,31 +68,26 @@ export default function MyLectures() {
 
   useEffect(() => { load(); }, [load]);
 
-  const courses = useMemo(() => {
-    const set = new Set();
-    lectures.forEach((l) => { if (l.course) set.add(l.course); });
-    return [...set].sort();
-  }, [lectures]);
+  const set = new Set();
+  lectures.forEach((l) => { if (l.course) set.add(l.course); });
+  const courses = [...set].sort();
 
-  const filtered = useMemo(() => {
-    let list = lectures;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((l) =>
-        l.title?.toLowerCase().includes(q) ||
-        l.course?.toLowerCase().includes(q) ||
-        l.instructor?.toLowerCase().includes(q) ||
-        l.tags?.some((t) => t.toLowerCase().includes(q))
-      );
-    }
-    if (course !== "all") list = list.filter((l) => l.course === course);
-    list = [...list].sort((a, b) => {
-      if (sort === "oldest") return new Date(a.created_date) - new Date(b.created_date);
-      if (sort === "duration") return (b.duration || 0) - (a.duration || 0);
-      return new Date(b.created_date) - new Date(a.created_date);
-    });
-    return list;
-  }, [lectures, search, course, sort]);
+  let filtered = lectures;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter((l) =>
+      l.title?.toLowerCase().includes(q) ||
+      l.course?.toLowerCase().includes(q) ||
+      l.instructor?.toLowerCase().includes(q) ||
+      l.tags?.some((t) => t.toLowerCase().includes(q))
+    );
+  }
+  if (course !== "all") filtered = filtered.filter((l) => l.course === course);
+  filtered = [...filtered].sort((a, b) => {
+    if (sort === "oldest") return new Date(a.created_date) - new Date(b.created_date);
+    if (sort === "duration") return (b.duration || 0) - (a.duration || 0);
+    return new Date(b.created_date) - new Date(a.created_date);
+  });
 
   return (
     <div className="p-6 sm:p-8">

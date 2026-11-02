@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,13 +35,11 @@ export default function UserManagement() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return users || [];
-    return (users || []).filter((u) =>
+  const q = search.trim().toLowerCase();
+  const filtered = !q ? (users || []) :
+    (users || []).filter((u) =>
       `${u.name || ""} ${u.email || ""} ${u.access_type || ""}`.toLowerCase().includes(q)
     );
-  }, [users, search]);
 
   const handleResetPassword = async (u) => {
     try {

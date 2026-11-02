@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -79,23 +79,19 @@ export default function DigestResults() {
   };
 
   // Transcript segments that fall within the digest's selected segments.
-  const digestTranscripts = useMemo(() => {
-    if (!segments.length || !transcripts.length) return [];
-    return transcripts.filter((t) =>
+  const digestTranscripts = (!segments.length || !transcripts.length) ? [] :
+    transcripts.filter((t) =>
       segments.some((s) => t.timestamp >= s.start_time - 5 && t.timestamp <= s.end_time + 5)
     );
-  }, [segments, transcripts]);
 
   const filteredTranscripts = search
     ? digestTranscripts.filter((t) => t.text.toLowerCase().includes(search.toLowerCase()))
     : digestTranscripts;
 
-  const highlightTerms = useMemo(() => {
-    const terms = new Set();
-    (digest?.topics || []).forEach((t) => t.toLowerCase().split(/\s+/).forEach((w) => { if (w.length > 3) terms.add(w); }));
-    (digest?.learning_goal || "").toLowerCase().split(/\W+/).forEach((w) => { if (w.length > 4) terms.add(w); });
-    return [...terms];
-  }, [digest]);
+  const terms = new Set();
+  (digest?.topics || []).forEach((t) => t.toLowerCase().split(/\s+/).forEach((w) => { if (w.length > 3) terms.add(w); }));
+  (digest?.learning_goal || "").toLowerCase().split(/\W+/).forEach((w) => { if (w.length > 4) terms.add(w); });
+  const highlightTerms = [...terms];
 
   if (loading) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -54,35 +54,28 @@ export default function MyDigests() {
 
   useEffect(() => { load(); }, [load]);
 
-  const courses = useMemo(() => {
-    const set = new Set();
-    digests.forEach((d) => { const c = lectures[d.lecture_id]?.course; if (c) set.add(c); });
-    return [...set].sort();
-  }, [digests, lectures]);
+  const set1 = new Set();
+  digests.forEach((d) => { const c = lectures[d.lecture_id]?.course; if (c) set1.add(c); });
+  const courses = [...set1].sort();
 
-  const topics = useMemo(() => {
-    const set = new Set();
-    digests.forEach((d) => (d.topics || []).forEach((t) => set.add(t)));
-    return [...set].sort();
-  }, [digests]);
+  const set2 = new Set();
+  digests.forEach((d) => (d.topics || []).forEach((t) => set2.add(t)));
+  const topics = [...set2].sort();
 
-  const filtered = useMemo(() => {
-    let list = digests;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((d) =>
-        d.title?.toLowerCase().includes(q) ||
-        d.learning_goal?.toLowerCase().includes(q) ||
-        lectures[d.lecture_id]?.title?.toLowerCase().includes(q)
-      );
-    }
-    if (course !== "all") list = list.filter((d) => lectures[d.lecture_id]?.course === course);
-    if (topic !== "all") list = list.filter((d) => (d.topics || []).includes(topic));
-    list = [...list].sort((a, b) => sort === "oldest"
-      ? new Date(a.created_date) - new Date(b.created_date)
-      : new Date(b.created_date) - new Date(a.created_date));
-    return list;
-  }, [digests, lectures, search, course, topic, sort]);
+  let filtered = digests;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter((d) =>
+      d.title?.toLowerCase().includes(q) ||
+      d.learning_goal?.toLowerCase().includes(q) ||
+      lectures[d.lecture_id]?.title?.toLowerCase().includes(q)
+    );
+  }
+  if (course !== "all") filtered = filtered.filter((d) => lectures[d.lecture_id]?.course === course);
+  if (topic !== "all") filtered = filtered.filter((d) => (d.topics || []).includes(topic));
+  filtered = [...filtered].sort((a, b) => sort === "oldest"
+    ? new Date(a.created_date) - new Date(b.created_date)
+    : new Date(b.created_date) - new Date(a.created_date));
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this digest?")) return;
