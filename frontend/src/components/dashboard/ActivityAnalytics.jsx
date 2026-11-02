@@ -61,7 +61,23 @@ export default function ActivityAnalytics() {
   }
 
   if (error || !analytics) {
-    return null;
+    // Fallback: show empty activity instead of hiding section
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 mb-10">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Activity</h3>
+          <div className="flex gap-1 rounded-lg bg-muted p-1">
+            <button className="px-3 py-1 text-xs font-medium rounded bg-primary text-primary-foreground">Daily</button>
+            <button className="px-3 py-1 text-xs font-medium rounded text-muted-foreground">Weekly</button>
+            <button className="px-3 py-1 text-xs font-medium rounded text-muted-foreground">Monthly</button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mb-6">Lectures added and digests generated over time.</p>
+        <div className="text-center py-8 text-sm text-muted-foreground">
+          {error ? `Unable to load activity data: ${error}` : 'No activity data available yet.'}
+        </div>
+      </div>
+    );
   }
 
   const daily = analytics.dailyActivity || [];
