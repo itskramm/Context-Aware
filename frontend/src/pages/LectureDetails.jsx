@@ -472,7 +472,7 @@ function TopicsTab({ topics, seekTo }) {
       {topics.map((t) => (
         <button
           key={t.id}
-          onClick={() => seekTo(t.start_time)}
+          onClick={() => t.start_time != null && seekTo(t.start_time)}
           className="text-left rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
         >
           <div className="flex items-start gap-2 mb-2">
@@ -480,16 +480,20 @@ function TopicsTab({ topics, seekTo }) {
               <ListTree className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <span className="font-semibold text-sm block">{t.topic_name}</span>
-              <p className="text-xs text-muted-foreground tabular-nums mt-0.5">{t.start_label} – {t.end_label}</p>
+              <span className="font-semibold text-sm block">{t.topic_name || "Untitled Topic"}</span>
+              {t.start_label && t.end_label && (
+                <p className="text-xs text-muted-foreground tabular-nums mt-0.5">{t.start_label} – {t.end_label}</p>
+              )}
             </div>
           </div>
           {t.description && (
             <p className="text-sm text-muted-foreground leading-relaxed mt-2">{t.description}</p>
           )}
-          <span className="inline-flex items-center gap-1 text-xs text-primary mt-3">
-            <Play className="w-3 h-3" /> Jump to {t.start_label}
-          </span>
+          {t.start_label && (
+            <span className="inline-flex items-center gap-1 text-xs text-primary mt-3">
+              <Play className="w-3 h-3" /> Jump to {t.start_label}
+            </span>
+          )}
         </button>
       ))}
     </div>
