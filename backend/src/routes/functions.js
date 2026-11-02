@@ -111,13 +111,13 @@ router.post('/generateDigest', async (req, res) => {
     
     // Generate AI summary based on learning goal
     console.log('Generating personalized digest with Groq GPT-OSS-120B...');
+    // Limit to ~100k chars for API
     const prompt = `Given this lecture transcript and the student's learning goal, identify the most relevant sections.
 
 Learning Goal: ${learning_goal}
 ${topics.length > 0 ? `Topics of Interest: ${topics.join(', ')}` : ''}
 
 Transcript:
-// Limit to ~100k chars for API
 ${fullTranscript.substring(0, 100000)}
 
 Respond in JSON format:
