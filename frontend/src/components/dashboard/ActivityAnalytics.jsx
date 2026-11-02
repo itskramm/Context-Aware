@@ -141,20 +141,25 @@ export default function ActivityAnalytics() {
 
       {/* Chart */}
       <div className="relative h-48 mb-4">
-        <div className="absolute inset-0 flex items-end justify-between gap-1 pb-6">
+        <div className="absolute inset-0 flex items-end justify-between gap-1.5 pb-6">
           {chartData.map((d, i) => {
             const total = d.lectures + d.digests;
-            const height = maxVal > 0 ? (total / maxVal) * 100 : 0;
             const lectureH = maxVal > 0 ? (d.lectures / maxVal) * 100 : 0;
             const digestH = maxVal > 0 ? (d.digests / maxVal) * 100 : 0;
             return (
-              <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col-reverse items-center gap-0.5" style={{ height: '100%' }}>
+              <div key={d.date} className="flex-1 flex flex-col justify-end h-full">
+                <div className="w-full flex flex-col-reverse items-center gap-0.5">
                   {d.lectures > 0 && (
-                    <div className="w-full bg-foreground rounded-t" style={{ height: `${lectureH}%` }} />
+                    <div 
+                      className="w-full bg-white dark:bg-white rounded-t" 
+                      style={{ height: `${lectureH}%`, minHeight: d.lectures > 0 ? '4px' : '0' }} 
+                    />
                   )}
                   {d.digests > 0 && (
-                    <div className="w-full bg-primary rounded-t" style={{ height: `${digestH}%` }} />
+                    <div 
+                      className="w-full bg-primary rounded-t" 
+                      style={{ height: `${digestH}%`, minHeight: d.digests > 0 ? '4px' : '0' }} 
+                    />
                   )}
                 </div>
               </div>
@@ -171,7 +176,7 @@ export default function ActivityAnalytics() {
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-foreground" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-white dark:bg-white" />
           Lectures
         </span>
         <span className="flex items-center gap-1.5">
