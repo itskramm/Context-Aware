@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { User, Mail, Calendar, Shield, Key, Loader2, Save, Library, Clapperboard, Eye } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Key, Loader2, Save, Library, Clapperboard, Eye, Camera, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   // Profile edit state
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || user?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Password change state
   const [changingPassword, setChangingPassword] = useState(false);
@@ -71,6 +74,44 @@ export default function Profile() {
     }
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file type', description: 'Please select an image file.', variant: 'destructive' });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Maximum file size is 5MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const storage = getStorage();
+      const fileName = `profile-photos/${user.id}-${Date.now()}.${file.name.split('.').pop()}`;
+      const fileRef = storageRef(storage, fileName);
+      
+      await uploadBytes(fileRef, file);
+      const photoURL = await getDownloadURL(fileRef);
+      
+      // Update user profile with photo URL
+      await base44.patch('/auth/me', { photoURL });
+      await refreshUser();
+      
+      toast({ title: 'Profile photo updated', description: 'Your profile picture has been changed successfully.' });
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      toast({ title: 'Failed to upload photo', description: err?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleChangePassword = async () => {
     if (!currentPassword) {
       toast({ title: 'Current password required', variant: 'destructive' });
@@ -113,6 +154,59 @@ export default function Profile() {
       </div>
 
       <div className="space-y-6">
+        {/* Profile Photo */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="font-semibold mb-5 flex items-center gap-2">
+            <Camera className="w-5 h-5 text-muted-foreground" />
+            PROFILE PHOTO
+          </h3>
+          <div className="flex items-center gap-6">
+            <div className="relative">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.name || 'Profile'}
+                  className="w-24 h-24 rounded-full object-cover border-2 border-border"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-border flex items-center justify-center">
+                  <User className="w-10 h-10 text-primary" />
+                </div>
+              )}
+              {uploadingPhoto && (
+                <div className="absolute inset-0 bg-background/80 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Upload a profile picture. Recommended: square image, max 5MB.
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+              >
+                {uploadingPhoto ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-1" />
+                )}
+                Upload Photo
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Profile Info */}
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center justify-between mb-5">
