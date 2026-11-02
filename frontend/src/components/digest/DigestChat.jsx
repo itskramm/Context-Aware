@@ -1,89 +1,75 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Clock, Loader2, Send, Sparkles } from "lucide-react";
 
-const AGENT_NAME = "lecture_tutor";
-const CONTEXT_PREFIX = /^\[Context:[^\]]*\]\s*/i;
-
-export default function DigestChat({ digest }) {
-  const [conversation, setConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
+/**
+ * DigestChat — "Ask about this lecture" chat panel.
+ *
+ * Props:
+ *   digest   {object}   required  — the digest object (must have lectureId or lecture_id)
+ *   onSeek   {function} optional  — called with seconds (number) when a timestamp badge is clicked
+ */
+export default function DigestChat({ digest, onSeek }) {
+  const [messages, setMessages] = useState([]); // { role, content, relevantTimestamps? }[]
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const endRef = useRef(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe = null;
+  const lectureId = digest?.lectureId || digest?.lecture_id;
 
-    const start = async () => {
-      setLoading(true);
-      try {
-        const rawConversations = await base44.agents.listConversations({ agent_name: AGENT_NAME });
-        const existingConversations = Array.isArray(rawConversations)
-          ? rawConversations
-          : (rawConversations?.items || []);
-        const existing = existingConversations.find(
-          (c) => c.metadata?.digest_id === digest.id
-        );
-        const conv = existing || await base44.agents.createConversation({
-          agent_name: AGENT_NAME,
-          metadata: {
-            name: `Digest Q&A: ${digest.title}`,
-            description: digest.title,
-            digest_id: digest.id,
-            lecture_id: digest.lecture_id,
-          },
-        });
-        if (cancelled) return;
-        setConversation(conv);
-        setMessages(conv.messages || []);
-        unsubscribe = base44.agents.subscribeToConversation(conv.id, (data) => {
-          setMessages(data.messages || []);
-        });
-      } catch (err) {
-        if (!cancelled) setError(err?.message || "Could not start the tutor.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    start();
-    return () => {
-      cancelled = true;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [digest.id, digest.lecture_id, digest.title]);
-
-  useEffect(() => {
+  const scrollToBottom = () => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  };
 
   const send = async () => {
     const question = input.trim();
-    if (!question || !conversation) return;
+    if (!question || sending) return;
+
     setInput("");
     setError("");
-    const isFirst = !messages.some((m) => m.role === "user");
-    const content = isFirst
-      ? `[Context: digest_id=${digest.id}, lecture_id=${digest.lecture_id}]\n\n${question}`
-      : question;
+
+    // Optimistically add the user message
+    const userMessage = { role: "user", content: question };
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setSending(true);
+
+    setTimeout(scrollToBottom, 0);
+
     try {
-      await base44.agents.addMessage(conversation, { role: "user", content });
+      // Build conversation history from existing messages (exclude the one we just added)
+      const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
+
+      const response = await base44.post("/chat/ask", {
+        lectureId,
+        question,
+        conversationHistory,
+      });
+
+      const assistantMessage = {
+        role: "assistant",
+        content: response.answer || "",
+        relevantTimestamps: response.relevantTimestamps || [],
+      };
+
+      setMessages([...nextMessages, assistantMessage]);
     } catch (err) {
-      setError(err?.message || "Could not send your question.");
+      setError(err?.message || "Could not get a response. Please try again.");
+      // Roll back the optimistic user message on error
+      setMessages(messages);
+    } finally {
+      setSending(false);
+      setTimeout(scrollToBottom, 0);
     }
   };
 
-  const isThinking =
-    messages.length > 0 && messages[messages.length - 1]?.role === "user";
-
   return (
     <div className="rounded-2xl border border-border bg-card mt-6">
+      {/* Header */}
       <div className="p-4 border-b border-border">
         <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Sparkles className="w-4 h-4" /> Ask about this lecture
@@ -93,54 +79,83 @@ export default function DigestChat({ digest }) {
         </p>
       </div>
 
+      {/* Message area */}
       <div className="max-h-96 overflow-y-auto p-4 space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
             No questions yet. Ask anything about this lecture.
           </p>
         ) : (
           messages.map((m, i) => {
             const isUser = m.role === "user";
-            const text = isUser
-              ? String(m.content || "").replace(CONTEXT_PREFIX, "")
-              : String(m.content || "");
             return (
-              <div key={m.id || i} className={isUser ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
-                    isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                  }`}
-                >
-                  {isUser ? (
-                    <p className="whitespace-pre-wrap">{text}</p>
-                  ) : text ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown>{text}</ReactMarkdown>
+              <div key={i} className={isUser ? "flex justify-end" : "flex justify-start"}>
+                <div className="max-w-[85%] space-y-1.5">
+                  <div
+                    className={`rounded-2xl px-3.5 py-2.5 text-sm ${
+                      isUser
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {isUser ? (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    ) : (
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Timestamp badges */}
+                  {!isUser && m.relevantTimestamps && m.relevantTimestamps.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-1">
+                      {m.relevantTimestamps.map((ts, ti) => {
+                        const mm = Math.floor(ts.time / 60);
+                        const ss = Math.floor(ts.time % 60);
+                        const label = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+                        const snippet =
+                          ts.text && ts.text.length > 40
+                            ? ts.text.slice(0, 40) + "…"
+                            : ts.text || "";
+                        return (
+                          <button
+                            key={ti}
+                            type="button"
+                            onClick={() => onSeek && onSeek(ts.time)}
+                            className={`inline-flex items-center gap-1 text-xs rounded-full border px-2 py-0.5 transition-colors ${
+                              onSeek
+                                ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+                                : "border-border bg-muted text-muted-foreground cursor-default"
+                            }`}
+                          >
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span className="font-mono">[{label}]</span>
+                            {snippet && <span className="truncate max-w-[140px]">{snippet}</span>}
+                          </button>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking…
-                    </span>
                   )}
                 </div>
               </div>
             );
           })
         )}
-        {isThinking && (
+
+        {/* Thinking indicator */}
+        {sending && (
           <div className="flex justify-start">
             <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground inline-flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking…
             </div>
           </div>
         )}
+
         <div ref={endRef} />
       </div>
 
+      {/* Input area */}
       <div className="p-3 border-t border-border">
         {error && <p className="text-xs text-destructive mb-2">{error}</p>}
         <form
@@ -154,10 +169,14 @@ export default function DigestChat({ digest }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a follow-up question…"
-            disabled={loading}
+            disabled={sending}
           />
-          <Button type="submit" size="icon" disabled={!input.trim() || loading}>
-            <Send className="w-4 h-4" />
+          <Button type="submit" size="icon" disabled={!input.trim() || sending}>
+            {sending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </form>
       </div>
