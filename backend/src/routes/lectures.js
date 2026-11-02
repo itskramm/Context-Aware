@@ -76,6 +76,8 @@ router.get('/', async (req, res) => {
       });
     });
 
+    // Cache for 2 minutes (lectures list changes more often)
+    res.set('Cache-Control', 'public, max-age=120, s-maxage=120');
     res.json({ lectures, count: lectures.length });
   } catch (error) {
     console.error('Get lectures error:', error);

@@ -34,6 +34,8 @@ router.get('/', async (req, res) => {
       });
     });
 
+    // Cache for 5 minutes (topics don't change often)
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
     res.json(topics);
   } catch (error) {
     console.error('Get topics error:', error);

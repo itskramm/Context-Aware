@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -177,6 +177,10 @@ export default function LectureDetails() {
   const isReady = lecture.processing_status === "ready";
   const isProcessing = !isReady && lecture.processing_status !== "failed";
 
+  // Memoize expensive computations
+  const isYoutube = useMemo(() => isYoutubeUrl(lecture.file_url), [lecture.file_url]);
+  const videoId = useMemo(() => getYoutubeId(lecture.file_url), [lecture.file_url]);
+
   return (
     <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <Link to="/lectures" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
@@ -272,7 +276,8 @@ export default function LectureDetails() {
   );
 }
 
-function ProcessingBanner({ lecture }) {
+// Memoized components for better performance
+const ProcessingBanner = React.memo(function ProcessingBanner({ lecture }) {
   const idx = stageIndex(lecture.processing_status);
   return (
     <div className="rounded-2xl border border-border bg-card p-8">
@@ -301,9 +306,9 @@ function ProcessingBanner({ lecture }) {
       </div>
     </div>
   );
-}
+});
 
-function OverviewTab({ lecture, topics, transcripts }) {
+const OverviewTab = React.memo(function OverviewTab({ lecture, topics, transcripts }) {
   const isYoutube = isYoutubeUrl(lecture.file_url);
   const videoId = getYoutubeId(lecture.file_url);
   const transcriptPreview = transcripts.slice(0, 3).map((t) => t.text).join(" ");
@@ -392,12 +397,20 @@ function OverviewTab({ lecture, topics, transcripts }) {
       </div>
     </div>
   );
-}
+});
 
-function TranscriptTab({ transcripts, search, setSearch, seekTo }) {
-  const filtered = search
-    ? transcripts.filter((t) => t.text.toLowerCase().includes(search.toLowerCase()))
-    : transcripts;
+const TranscriptTab = React.memo(function TranscriptTab({ transcripts, search, setSearch, seekTo }) {
+  // Memoize filtered results
+  const filtered = useMemo(() => {
+    if (!search) return transcripts;
+    const searchLower = search.toLowerCase();
+    return transcripts.filter((t) => t.text.toLowerCase().includes(searchLower));
+  }, [transcripts, search]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard?.writeText(transcripts.map((t) => `${t.timestamp_label} ${t.text}`).join("\n"));
+    toast({ title: "Transcript copied" });
+  }, [transcripts]);
 
   if (transcripts.length === 0) {
     return (
@@ -429,7 +442,7 @@ function TranscriptTab({ transcripts, search, setSearch, seekTo }) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { navigator.clipboard?.writeText(transcripts.map((t) => `${t.timestamp_label} ${t.text}`).join("\n")); toast({ title: "Transcript copied" }); }}
+          onClick={handleCopy}
         >
           <Copy className="w-4 h-4" /> Copy
         </Button>
@@ -452,9 +465,9 @@ function TranscriptTab({ transcripts, search, setSearch, seekTo }) {
       </div>
     </div>
   );
-}
+});
 
-function TopicsTab({ topics, seekTo }) {
+const TopicsTab = React.memo(function TopicsTab({ topics, seekTo }) {
   if (topics.length === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center">

@@ -1,10 +1,39 @@
 /**
  * Base44 API Client
- * Axios-based wrapper around the backend API
+ * Axios-based wrapper around the backend API with caching
  */
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache helper functions
+const getCacheKey = (url, params) => {
+  return `${url}${params ? '?' + new URLSearchParams(params).toString() : ''}`;
+};
+
+const getCachedData = (key) => {
+  const cached = cache.get(key);
+  if (!cached) return null;
+  
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_DURATION) {
+    cache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+};
+
+const setCachedData = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
 
 // Create axios instance
 const axiosInstance = axios.create({
@@ -70,10 +99,29 @@ class Base44Client {
   }
 
   /**
-   * GET request
+   * GET request with caching
    */
-  async get(endpoint, params = {}) {
-    return this.axios.get(endpoint, { params });
+  async get(endpoint, params = {}, options = {}) {
+    const { cache: useCache = true } = options;
+    
+    if (useCache) {
+      const cacheKey = getCacheKey(endpoint, params);
+      const cachedData = getCachedData(cacheKey);
+      
+      if (cachedData) {
+        console.log(`[Cache Hit] ${endpoint}`);
+        return cachedData;
+      }
+    }
+    
+    const response = await this.axios.get(endpoint, { params });
+    
+    if (useCache) {
+      const cacheKey = getCacheKey(endpoint, params);
+      setCachedData(cacheKey, response);
+    }
+    
+    return response;
   }
 
   /**
@@ -102,6 +150,23 @@ class Base44Client {
    */
   async delete(endpoint) {
     return this.axios.delete(endpoint);
+  }
+
+  /**
+   * Clear cache (useful after mutations)
+   */
+  clearCache(pattern) {
+    if (pattern) {
+      // Clear specific entries matching pattern
+      for (const key of cache.keys()) {
+        if (key.includes(pattern)) {
+          cache.delete(key);
+        }
+      }
+    } else {
+      // Clear all cache
+      cache.clear();
+    }
   }
 
   // Authentication methods
