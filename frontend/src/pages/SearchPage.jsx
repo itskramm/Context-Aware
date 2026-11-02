@@ -70,6 +70,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [lectures, setLectures] = useState([]);
   const [digests, setDigests] = useState([]);
+  const [transcriptMap, setTranscriptMap] = useState({});
   const [loading, setLoading] = useState(true);
   const debouncedQuery = useDebounce(query, 300);
 
@@ -78,12 +79,22 @@ export default function SearchPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [lecturesData, digestsData] = await Promise.all([
+        const [lecturesData, digestsData, transcriptsData] = await Promise.all([
           base44.entities.Lecture.list('-created_date', 200),
           base44.entities.Digest.list('-created_date', 200),
+          base44.entities.Transcript.filter({}, 'timestamp', 2000),
         ]);
+        
+        // Build transcript map: lecture_id -> full transcript text
+        const tMap = {};
+        (transcriptsData || []).forEach(t => {
+          if (!tMap[t.lecture_id]) tMap[t.lecture_id] = '';
+          tMap[t.lecture_id] += (t.text || '') + ' ';
+        });
+        
         setLectures(lecturesData || []);
         setDigests(digestsData || []);
+        setTranscriptMap(tMap);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -120,18 +131,21 @@ export default function SearchPage() {
           snippet = result.snippet;
         }
         // Check transcript
-        else if (lecture.full_transcript?.toLowerCase().includes(q)) {
-          matchField = 'transcript';
-          const result = createSnippet(lecture.full_transcript, debouncedQuery, 50);
-          snippet = result.snippet;
+        else if (transcriptMap[lecture.id]) {
+          const transcriptText = transcriptMap[lecture.id];
+          if (transcriptText.toLowerCase().includes(q)) {
+            matchField = 'transcript';
+            const result = createSnippet(transcriptText, debouncedQuery, 50);
+            snippet = result.snippet;
+          }
         }
         // Check course
-        else if (lecture.course?.toLowerCase().includes(q)) {
+        if (!matchField && lecture.course?.toLowerCase().includes(q)) {
           matchField = 'course';
           snippet = lecture.course;
         }
         // Check tags
-        else if (lecture.tags?.some(tag => tag.toLowerCase().includes(q))) {
+        if (!matchField && lecture.tags?.some(tag => tag.toLowerCase().includes(q))) {
           matchField = 'tags';
           const matchedTag = lecture.tags.find(tag => tag.toLowerCase().includes(q));
           snippet = `Tag: ${matchedTag}`;
@@ -180,7 +194,7 @@ export default function SearchPage() {
       digests: matchedDigests,
       total: matchedLectures.length + matchedDigests.length,
     };
-  }, [debouncedQuery, lectures, digests]);
+  }, [debouncedQuery, lectures, digests, transcriptMap]);
 
   const isSearching = query !== debouncedQuery;
   const hasQuery = debouncedQuery.trim().length > 0;
