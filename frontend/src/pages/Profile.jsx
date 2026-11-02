@@ -55,25 +55,6 @@ export default function Profile() {
     }
   };
 
-  const handleSaveProfile = async () => {
-    if (!name.trim()) {
-      toast({ title: 'Name required', description: 'Please enter your name.', variant: 'destructive' });
-      return;
-    }
-    setSaving(true);
-    try {
-      // Update user via PATCH /auth/me endpoint
-      await base44.patch('/auth/me', { name: name.trim() });
-      await refreshUser(); // Reload user from backend
-      setEditing(false);
-      toast({ title: 'Profile updated', description: 'Your profile has been saved successfully.' });
-    } catch (err) {
-      toast({ title: 'Failed to update profile', description: err?.message || 'Please try again.', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -109,6 +90,25 @@ export default function Profile() {
       toast({ title: 'Failed to upload photo', description: err?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Name required', description: 'Please enter your name.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Update user via PATCH /auth/me endpoint
+      await base44.patch('/auth/me', { name: name.trim() });
+      await refreshUser(); // Reload user from backend
+      setEditing(false);
+      toast({ title: 'Profile updated', description: 'Your profile has been saved successfully.' });
+    } catch (err) {
+      toast({ title: 'Failed to update profile', description: err?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
