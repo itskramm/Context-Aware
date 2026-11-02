@@ -55,18 +55,43 @@ export default function DigestResults() {
         setLoading(false);
         return;
       }
+      // Parse "M:SS" or "H:MM:SS" timestamp string into seconds
+      const parseTimestamp = (ts) => {
+        if (!ts) return 0;
+        const parts = String(ts).split(":").map(Number);
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        return 0;
+      };
+      const fmtSecs = (s) => {
+        const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+        return `${m}:${String(sec).padStart(2, "0")}`;
+      };
+
       // Segments live inside digest.content.chapters or digest.content.topics
-      // Map them to the shape SegmentCard expects
       const contentTopics = dig.content?.topics || [];
       const contentChapters = dig.content?.chapters || [];
-      const mappedSegs = (contentChapters.length ? contentChapters : contentTopics).map((t, i) => ({
-        id: `seg-${i}`,
-        title: typeof t === "string" ? t : t.name || t.title || `Section ${i + 1}`,
-        description: typeof t === "object" ? t.description || "" : "",
-        start_time: typeof t === "object" ? (t.startTime ?? t.start_time ?? 0) : 0,
-        end_time: typeof t === "object" ? (t.endTime ?? t.end_time ?? 0) : 0,
-        relevance_score: 1,
-      }));
+      const sourceList = contentChapters.length ? contentChapters : contentTopics;
+      const mappedSegs = sourceList.map((t, i) => {
+        const startSecs = parseTimestamp(
+          typeof t === "object" ? (t.timestamp ?? t.startTime ?? t.start_time) : null
+        );
+        // Estimate end as start of next segment (or start + 5 min for last)
+        const nextT = sourceList[i + 1];
+        const endSecs = nextT
+          ? parseTimestamp(typeof nextT === "object" ? (nextT.timestamp ?? nextT.startTime ?? nextT.start_time) : null)
+          : startSecs + 300;
+        return {
+          id: `seg-${i}`,
+          topic: typeof t === "string" ? t : t.name || t.title || `Section ${i + 1}`,
+          explanation: typeof t === "object" ? t.description || t.summary || "" : "",
+          start_time: startSecs,
+          end_time: endSecs,
+          start_label: fmtSecs(startSecs),
+          end_label: fmtSecs(endSecs),
+          relevance_score: Math.round(90 - i * 5) || 70, // descending relevance
+        };
+      });
 
       const [lec, trans] = await Promise.all([
         base44.entities.Lecture.get(lecId),
