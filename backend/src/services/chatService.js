@@ -90,7 +90,7 @@ ${transcriptText || '(No transcript available for this lecture.)'}`;
   ];
 
   const completion = await client.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model: 'openai/gpt-oss-20b',
     messages,
     temperature: 0.3,
     max_tokens: 1024,
