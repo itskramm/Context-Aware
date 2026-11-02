@@ -182,6 +182,10 @@ export async function transcribeWithGroq(audioFilePath) {
  * @param {string} transcript - Full transcript text
  * @returns {Promise<Object>} - Summary with key points and chapters
  */
+// Free tier limit: 8000 TPM. Prompt overhead ~500 tokens, output ~500 tokens.
+// Leaves ~5500 tokens for transcript. At ~4 chars/token = ~20000 chars safe.
+const MAX_TRANSCRIPT_CHARS = 18000;
+
 export async function generateSummaryWithGroq(transcript) {
   try {
     console.log('Generating summary with Groq GPT-OSS-120B (FREE)...');
@@ -190,6 +194,11 @@ export async function generateSummaryWithGroq(transcript) {
     if (!groq) {
       throw new Error('Groq API key not configured');
     }
+
+    // Truncate transcript to stay within token limits
+    const truncated = transcript.length > MAX_TRANSCRIPT_CHARS
+      ? transcript.substring(0, MAX_TRANSCRIPT_CHARS) + '... [transcript truncated]'
+      : transcript;
 
     const prompt = `You are an expert at analyzing lecture transcripts and creating educational summaries.
 
@@ -204,7 +213,7 @@ Analyze this lecture transcript and provide a JSON response with:
    - timestamp: Estimated start time (e.g., "0:00", "5:30", "12:15")
 
 Transcript:
-${transcript}
+${truncated}
 
 Respond ONLY with valid JSON matching this structure:
 {
@@ -257,6 +266,10 @@ export async function generateQuestionsWithGroq(transcript) {
       throw new Error('Groq API key not configured');
     }
 
+    const truncated = transcript.length > MAX_TRANSCRIPT_CHARS
+      ? transcript.substring(0, MAX_TRANSCRIPT_CHARS) + '... [transcript truncated]'
+      : transcript;
+
     const prompt = `Create 5-8 quiz questions based on this lecture transcript.
 
 For each question provide:
@@ -266,7 +279,7 @@ For each question provide:
 - explanation: Why this is the correct answer
 
 Transcript:
-${transcript}
+${truncated}
 
 Respond ONLY with valid JSON:
 {
