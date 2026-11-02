@@ -293,3 +293,67 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: 'Failed to upload file', details: error.message });
   }
 });
+
+
+// Create lecture from YouTube URL
+router.post('/youtube', async (req, res) => {
+  try {
+    const { youtubeUrl, title, course, instructor, tags, uploadedBy } = req.body;
+
+    if (!youtubeUrl || !uploadedBy) {
+      return res.status(400).json({ error: 'YouTube URL and uploadedBy are required' });
+    }
+    
+    // Validate YouTube URL
+    if (!isYouTubeUrl(youtubeUrl)) {
+      return res.status(400).json({ error: 'Invalid YouTube URL' });
+    }
+    
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) {
+      return res.status(400).json({ error: 'Could not extract video ID from URL' });
+    }
+
+    const db = getFirestore();
+    
+    const lectureData = {
+      title: title || 'YouTube Lecture',
+      course: course || '',
+      instructor: instructor || '',
+      tags: tags || [],
+      file_url: youtubeUrl,
+      videoUrl: youtubeUrl,
+      thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      uploadedBy,
+      status: 'pending',
+      processing_status: 'pending',
+      uploadedAt: new Date().toISOString(),
+      created_date: new Date().toISOString(),
+      duration: 0,
+      viewCount: 0,
+      source: 'youtube'
+    };
+
+    const lectureRef = await db.collection('lectures').add(lectureData);
+    const lectureId = lectureRef.id;
+
+    res.status(201).json({
+      message: 'YouTube lecture created',
+      lecture: { id: lectureId, ...lectureData }
+    });
+
+    // Process in background
+    processLecture(lectureId).catch(error => {
+      console.error(`Processing failed:`, error);
+      db.collection('lectures').doc(lectureId).update({
+        status: 'failed',
+        processing_status: 'failed',
+        error: error.message
+      }).catch(err => console.error(err));
+    });
+
+  } catch (error) {
+    console.error('YouTube lecture error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
