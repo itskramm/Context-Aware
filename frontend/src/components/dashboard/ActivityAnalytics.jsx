@@ -81,13 +81,106 @@ export default function ActivityAnalytics() {
   }
 
   const daily = analytics.dailyActivity || [];
-  const todayData = daily[daily.length - 1] || { lectures: 0, digests: 0 };
-  const savedToday = analytics.totalTimeSavedSeconds > 0 
+  
+  // Aggregate data based on period
+  const getChartData = () => {
+    if (period === 'daily') {
+      return daily;
+    } else if (period === 'weekly') {
+      // Group by weeks (ISO weeks, starting Monday)
+      const weeks = {};
+      daily.forEach(d => {
+        const date = new Date(d.date);
+        // Get week number (simple approach: group by 7-day periods)
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay() + (date.getDay() === 0 ? -6 : 1)); // Start on Monday
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (!weeks[weekKey]) {
+          weeks[weekKey] = { date: weekKey, lectures: 0, digests: 0 };
+        }
+        weeks[weekKey].lectures += d.lectures;
+        weeks[weekKey].digests += d.digests;
+      });
+      
+      const weekArray = Object.values(weeks).sort((a, b) => a.date.localeCompare(b.date));
+      // Label weeks as W1, W2, W3, etc.
+      return weekArray.map((w, i) => ({
+        ...w,
+        label: `W${i + 1}`
+      }));
+    } else if (period === 'monthly') {
+      // Group by months
+      const months = {};
+      daily.forEach(d => {
+        const date = new Date(d.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!months[monthKey]) {
+          months[monthKey] = { date: monthKey, lectures: 0, digests: 0 };
+        }
+        months[monthKey].lectures += d.lectures;
+        months[monthKey].digests += d.digests;
+      });
+      
+      const monthArray = Object.values(months).sort((a, b) => a.date.localeCompare(b.date));
+      // Label with month abbreviations
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return monthArray.map(m => {
+        const [year, month] = m.date.split('-');
+        return {
+          ...m,
+          label: monthNames[parseInt(month) - 1]
+        };
+      });
+    }
+    return daily;
+  };
+
+  const chartData = getChartData();
+  
+  // Get current period data for stats
+  const getCurrentPeriodData = () => {
+    if (period === 'daily') {
+      const todayData = daily[daily.length - 1] || { lectures: 0, digests: 0 };
+      return { data: todayData, label: 'today' };
+    } else if (period === 'weekly') {
+      // Sum current week
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const thisWeek = daily.filter(d => {
+        const date = new Date(d.date);
+        return date >= weekStart;
+      }).reduce((acc, d) => ({
+        lectures: acc.lectures + d.lectures,
+        digests: acc.digests + d.digests
+      }), { lectures: 0, digests: 0 });
+      
+      return { data: thisWeek, label: 'this week' };
+    } else if (period === 'monthly') {
+      // Sum current month
+      const now = new Date();
+      const thisMonth = daily.filter(d => {
+        const date = new Date(d.date);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      }).reduce((acc, d) => ({
+        lectures: acc.lectures + d.lectures,
+        digests: acc.digests + d.digests
+      }), { lectures: 0, digests: 0 });
+      
+      return { data: thisMonth, label: 'this month' };
+    }
+    return { data: { lectures: 0, digests: 0 }, label: 'today' };
+  };
+
+  const { data: currentPeriodData, label: periodLabel } = getCurrentPeriodData();
+  const savedPeriod = analytics.totalTimeSavedSeconds > 0 
     ? fmtTime(Math.round(analytics.totalTimeSavedSeconds / Math.max(analytics.totalDigests, 1)))
     : '0m';
 
-  // Chart data based on period
-  const chartData = daily;
   const maxVal = chartData.reduce((m, d) => Math.max(m, d.lectures + d.digests), 1);
 
   return (
@@ -123,19 +216,19 @@ export default function ActivityAnalytics() {
       </div>
       <p className="text-xs text-muted-foreground mb-6">Lectures added and digests generated over time.</p>
 
-      {/* Today's stats */}
+      {/* Current period stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl bg-background/50 border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Lectures today</p>
-          <p className="text-3xl font-bold">{todayData.lectures}</p>
+          <p className="text-xs text-muted-foreground mb-1">Lectures {periodLabel}</p>
+          <p className="text-3xl font-bold">{currentPeriodData.lectures}</p>
         </div>
         <div className="rounded-xl bg-background/50 border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Digests today</p>
-          <p className="text-3xl font-bold">{todayData.digests}</p>
+          <p className="text-xs text-muted-foreground mb-1">Digests {periodLabel}</p>
+          <p className="text-3xl font-bold">{currentPeriodData.digests}</p>
         </div>
         <div className="rounded-xl bg-background/50 border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Saved today</p>
-          <p className="text-3xl font-bold">{savedToday}</p>
+          <p className="text-xs text-muted-foreground mb-1">Saved {periodLabel}</p>
+          <p className="text-3xl font-bold">{savedPeriod}</p>
         </div>
       </div>
 
