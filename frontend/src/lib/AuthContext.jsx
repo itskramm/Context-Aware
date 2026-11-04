@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
   }
 
   const updateLastActivity = () => {
-    if (isAuthenticated) {
+    if (token && user) {
       localStorage.setItem('lastActivity', Date.now().toString())
     }
   }
