@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
       try {
         setToken(storedToken)
         setUser(JSON.parse(storedUser))
-        // Update lastActivity to current time since they're back
-        localStorage.setItem('lastActivity', Date.now().toString())
+        // Keep the existing lastActivity timestamp - don't reset it
+        // It will be updated by InactivityLogout when user actually interacts
       } catch (err) {
         console.error('Failed to parse stored user:', err)
       }
