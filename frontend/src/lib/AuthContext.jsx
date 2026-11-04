@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = () => {
-    return hasRole('Admin') || hasRole('Super Admin')
+    return false
   }
 
   const value = {

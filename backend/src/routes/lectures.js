@@ -6,7 +6,7 @@ import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
 import { isYouTubeUrl, extractYouTubeId } from '../services/youtubeTranscriptService.js';
 import { fetchYouTubeMetadata } from '../services/youtubeDataApiService.js';
-import { uploadFileToStorage } from '../services/storageService.js';
+import { uploadFileToStorage, generateAndUploadThumbnail } from '../services/storageService.js';
 
 const router = express.Router();
 
@@ -234,14 +234,37 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const db = getFirestore();
 
-    // Upload to Firebase Storage for a permanent public URL
+    // Step 1: Generate thumbnail from local file BEFORE uploading
+    let thumbnailUrl = null;
+    let thumbnailGenerationStatus = 'pending';
+    try {
+      console.log('🎨 Generating thumbnail from local file before upload...');
+      thumbnailUrl = await generateAndUploadThumbnail(req.file.path);
+      if (thumbnailUrl) {
+        console.log('✅ Thumbnail generated and uploaded successfully');
+        thumbnailGenerationStatus = 'success';
+      } else {
+        console.warn('⚠️  Thumbnail generation returned null');
+        thumbnailGenerationStatus = 'failed';
+      }
+    } catch (thumbnailError) {
+      console.error('⚠️  Thumbnail generation failed:', thumbnailError.message);
+      thumbnailGenerationStatus = 'failed';
+      // Continue - thumbnail failure shouldn't block video upload
+    }
+
+    // Step 2: Upload video to Cloudinary (this will delete the local file)
     let fileUrl = req.file.path; // fallback to local path if Storage fails
     try {
       fileUrl = await uploadFileToStorage(req.file.path, req.file.originalname, req.file.mimetype);
-      console.log(`File uploaded to Firebase Storage: ${fileUrl}`);
+      console.log(`File uploaded to Cloudinary: ${fileUrl}`);
     } catch (storageError) {
-      console.error('Firebase Storage upload failed, falling back to local path:', storageError.message);
+      console.error('Cloudinary upload failed, falling back to local path:', storageError.message);
       // fileUrl stays as req.file.path (the local path)
+      // Cleanup local file if upload failed
+      if (fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (_) {}
+      }
     }
 
     const lectureData = {
@@ -249,6 +272,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       course: course || '',
       file_url: fileUrl,
       videoUrl: fileUrl,
+      thumbnail_url: thumbnailUrl,
+      thumbnailUrl: thumbnailUrl,
+      thumbnailGenerationStatus,
       uploadedBy,
       tags: tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [],
       purpose: purpose || 'general',

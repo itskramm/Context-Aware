@@ -9,8 +9,6 @@ import { getAccessType } from "@/lib/authValidations";
 import { useNavigate } from "react-router-dom";
 
 const BADGE_STYLES = {
-  "Super Admin": "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
-  Admin: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
   User: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300",
 };
 
