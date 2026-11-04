@@ -3,6 +3,7 @@ import { extractAudio, getAudioDuration } from './audioService.js';
 import { transcribeWithGroq, generateSummaryWithGroq, generateQuestionsWithGroq } from './groqService.js';
 import { fetchYouTubeTranscript, isYouTubeUrl, extractYouTubeId, getYouTubeMetadata } from './youtubeTranscriptService.js';
 import { fetchYouTubeMetadata } from './youtubeDataApiService.js';
+import { generateAndUploadThumbnail } from './storageService.js';
 import fs from 'fs';
 
 /**
@@ -115,6 +116,27 @@ export async function processLecture(lectureId) {
         // Tier 2 (audio fallback) logging
         console.log('Tier 2: Captions unavailable, falling back to Groq Whisper transcription...');
         // Fall through to the !transcription block below
+      }
+    }
+    
+    // Generate thumbnail for uploaded videos (not YouTube videos)
+    if (!isYoutube && !lecture.thumbnail_url) {
+      const videoUrl = lecture.videoUrl || lecture.file_url;
+      if (videoUrl) {
+        console.log('🎨 Generating thumbnail for uploaded video...');
+        try {
+          const thumbnailUrl = await generateAndUploadThumbnail(videoUrl);
+          if (thumbnailUrl) {
+            await lectureDoc.ref.update({ 
+              thumbnail_url: thumbnailUrl,
+              thumbnailUrl: thumbnailUrl 
+            });
+            console.log('✅ Thumbnail generated and uploaded successfully');
+          }
+        } catch (thumbnailError) {
+          console.warn('⚠️  Thumbnail generation failed, continuing processing:', thumbnailError.message);
+          // Don't throw - thumbnail failure shouldn't block video processing
+        }
       }
     }
     
