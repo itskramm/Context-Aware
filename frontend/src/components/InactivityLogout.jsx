@@ -9,7 +9,7 @@ const WARNING_AT_MS = 50000; // warn 10 seconds before logout
 // interaction (clicks, key presses, scrolling, touches). Shows a warning
 // toast shortly before the session expires.
 export default function InactivityLogout() {
-  const { logout } = useAuth();
+  const { logout, updateLastActivity } = useAuth();
   const warnedRef = useRef(false);
 
   useEffect(() => {
@@ -20,6 +20,10 @@ export default function InactivityLogout() {
       clearTimeout(logoutTimer);
       clearTimeout(warnTimer);
       warnedRef.current = false;
+      
+      // Update lastActivity timestamp in localStorage
+      updateLastActivity();
+      
       warnTimer = setTimeout(() => {
         if (!warnedRef.current) {
           warnedRef.current = true;
@@ -43,7 +47,7 @@ export default function InactivityLogout() {
       clearTimeout(logoutTimer);
       clearTimeout(warnTimer);
     };
-  }, [logout]);
+  }, [logout, updateLastActivity]);
 
   return null;
 }

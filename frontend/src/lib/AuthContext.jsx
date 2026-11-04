@@ -3,6 +3,8 @@ import { APP_PARAMS } from "./app-params"
 
 const AuthContext = createContext(null)
 
+const SESSION_TIMEOUT_MS = 60000 // 1 minute
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -14,11 +16,32 @@ export function AuthProvider({ children }) {
     // Check for existing session on mount
     const storedToken = localStorage.getItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
     const storedUser = localStorage.getItem(APP_PARAMS.USER_KEY || 'user')
+    const lastActivity = localStorage.getItem('lastActivity')
 
-    if (storedToken && storedUser) {
+    if (storedToken && storedUser && lastActivity) {
+      const lastActivityTime = parseInt(lastActivity, 10)
+      const now = Date.now()
+      const timeSinceActivity = now - lastActivityTime
+
+      // Check if session expired (more than 1 minute since last activity)
+      if (timeSinceActivity > SESSION_TIMEOUT_MS) {
+        // Session expired, clear everything
+        localStorage.removeItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
+        localStorage.removeItem(APP_PARAMS.USER_KEY || 'user')
+        localStorage.removeItem('lastActivity')
+        localStorage.removeItem('token')
+        localStorage.removeItem('base44_access_token')
+        setLoading(false)
+        setAuthChecked(true)
+        return
+      }
+
+      // Session still valid, restore it
       try {
         setToken(storedToken)
         setUser(JSON.parse(storedUser))
+        // Update lastActivity to current time since they're back
+        localStorage.setItem('lastActivity', Date.now().toString())
       } catch (err) {
         console.error('Failed to parse stored user:', err)
       }
@@ -38,7 +61,14 @@ export function AuthProvider({ children }) {
     setToken(authToken)
     localStorage.setItem(APP_PARAMS.TOKEN_KEY || 'auth_token', authToken)
     localStorage.setItem(APP_PARAMS.USER_KEY || 'user', JSON.stringify(userData))
+    localStorage.setItem('lastActivity', Date.now().toString())
     setAuthError(null)
+  }
+
+  const updateLastActivity = () => {
+    if (isAuthenticated) {
+      localStorage.setItem('lastActivity', Date.now().toString())
+    }
   }
 
   const logout = () => {
@@ -46,6 +76,7 @@ export function AuthProvider({ children }) {
     setToken(null)
     localStorage.removeItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
     localStorage.removeItem(APP_PARAMS.USER_KEY || 'user')
+    localStorage.removeItem('lastActivity')
     localStorage.removeItem('token')
     localStorage.removeItem('base44_access_token')
     // Component calling logout should handle navigation
@@ -78,6 +109,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     updateUser,
+    updateLastActivity,
     hasRole,
     isAdmin,
     // Compatibility properties for components expecting these
