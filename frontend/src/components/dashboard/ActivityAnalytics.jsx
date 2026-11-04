@@ -141,24 +141,49 @@ export default function ActivityAnalytics() {
 
       {/* Chart */}
       <div className="relative h-48 mb-4">
-        <div className="absolute inset-0 flex items-end justify-between gap-1.5 pb-6">
+        {/* Y-axis grid lines */}
+        <div className="absolute inset-0 pb-6 flex flex-col justify-between pointer-events-none">
+          {[100, 75, 50, 25, 0].map((val) => (
+            <div key={val} className="flex items-center">
+              <span className="text-[10px] text-muted-foreground w-6 text-right mr-2">{val === 100 ? maxVal : Math.round(maxVal * val / 100)}</span>
+              <div className="flex-1 border-t border-border/30" />
+            </div>
+          ))}
+        </div>
+        
+        {/* Bars */}
+        <div className="absolute inset-0 flex items-end justify-between gap-1.5 pb-6 pl-10">
           {chartData.map((d, i) => {
             const total = d.lectures + d.digests;
             const lectureH = maxVal > 0 ? (d.lectures / maxVal) * 100 : 0;
             const digestH = maxVal > 0 ? (d.digests / maxVal) * 100 : 0;
             return (
-              <div key={d.date} className="flex-1 flex flex-col justify-end h-full">
+              <div 
+                key={d.date} 
+                className="flex-1 flex flex-col justify-end h-full group"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
                 <div className="w-full flex flex-col-reverse items-center gap-0.5">
                   {d.lectures > 0 && (
                     <div 
-                      className="w-full bg-white dark:bg-white rounded-t" 
-                      style={{ height: `${lectureH}%`, minHeight: d.lectures > 0 ? '4px' : '0' }} 
+                      className="w-full bg-white dark:bg-white rounded-t transition-all duration-700 ease-out hover:opacity-80 animate-grow-up" 
+                      style={{ 
+                        height: `${lectureH}%`, 
+                        minHeight: d.lectures > 0 ? '4px' : '0',
+                        animationDelay: `${i * 50}ms`
+                      }} 
+                      title={`${d.lectures} lecture${d.lectures !== 1 ? 's' : ''}`}
                     />
                   )}
                   {d.digests > 0 && (
                     <div 
-                      className="w-full bg-primary rounded-t" 
-                      style={{ height: `${digestH}%`, minHeight: d.digests > 0 ? '4px' : '0' }} 
+                      className="w-full bg-primary rounded-t transition-all duration-700 ease-out hover:opacity-80 animate-grow-up" 
+                      style={{ 
+                        height: `${digestH}%`, 
+                        minHeight: d.digests > 0 ? '4px' : '0',
+                        animationDelay: `${i * 50 + 100}ms`
+                      }} 
+                      title={`${d.digests} digest${d.digests !== 1 ? 's' : ''}`}
                     />
                   )}
                 </div>
@@ -166,7 +191,9 @@ export default function ActivityAnalytics() {
             );
           })}
         </div>
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-muted-foreground">
+        
+        {/* X-axis labels */}
+        <div className="absolute bottom-0 left-10 right-0 flex justify-between text-[10px] text-muted-foreground">
           {chartData.map((d) => (
             <span key={d.date} className="flex-1 text-center">{d.label}</span>
           ))}

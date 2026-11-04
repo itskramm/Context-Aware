@@ -92,4 +92,21 @@
   .text-brand-end {
     color: #764ba2;
   }
+  
+  /* Chart bar grow animation */
+  @keyframes growUp {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--final-height);
+      opacity: 1;
+    }
+  }
+  
+  .animate-grow-up {
+    animation: growUp 0.7s ease-out forwards;
+    --final-height: 100%;
+  }
 }
