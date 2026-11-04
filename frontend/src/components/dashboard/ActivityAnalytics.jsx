@@ -166,7 +166,7 @@ export default function ActivityAnalytics() {
                 <div className="w-full flex flex-col-reverse items-center gap-0.5">
                   {d.lectures > 0 && (
                     <div 
-                      className="w-full bg-white dark:bg-white rounded-t transition-all duration-700 ease-out hover:opacity-80 animate-grow-up" 
+                      className="w-full bg-cyan-400 dark:bg-cyan-500 rounded-t transition-all duration-700 ease-out hover:opacity-80 animate-grow-up" 
                       style={{ 
                         height: `${lectureH}%`, 
                         minHeight: d.lectures > 0 ? '4px' : '0',
@@ -203,7 +203,7 @@ export default function ActivityAnalytics() {
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-white dark:bg-white" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-cyan-400 dark:bg-cyan-500" />
           Lectures
         </span>
         <span className="flex items-center gap-1.5">
