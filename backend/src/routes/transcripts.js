@@ -15,25 +15,31 @@ router.get('/', async (req, res) => {
     let query = db.collection('transcripts');
     
     if (lecId) {
-      query = query.where('lectureId', '==', lecId);
+      query = query.where('lectureId', '==', lecId).orderBy('timestamp', 'asc');
     }
     
-    query = query.orderBy('timestamp', 'asc').limit(parseInt(limit));
+    query = query.limit(parseInt(limit));
     
     const snapshot = await query.get();
     
-    const transcripts = [];
+    let transcripts = [];
     snapshot.forEach(doc => {
       const data = doc.data();
       transcripts.push({
         id: doc.id,
         lecture_id: data.lectureId,
+        lectureId: data.lectureId, // Include both for compatibility
         timestamp: data.timestamp,
         timestamp_label: formatTimestamp(data.timestamp),
         text: data.text,
         speaker: data.speaker || null
       });
     });
+
+    // Sort in memory if no lectureId filter (to avoid index requirement)
+    if (!lecId) {
+      transcripts = transcripts.sort((a, b) => a.timestamp - b.timestamp);
+    }
 
     // Cache for 5 minutes (transcripts don't change often)
     res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
