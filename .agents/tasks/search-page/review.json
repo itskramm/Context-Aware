@@ -1,0 +1,15 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "severity": "blocker",
+      "title": "Transcript search is non-functional",
+      "file": "frontend/src/pages/SearchPage.jsx",
+      "lines": "122-128",
+      "evidence": "Code searches lecture.full_transcript field which does not exist on Lecture entities. Transcripts are stored as separate Transcript entities in the database (see database/firestore-schema.md, backend/src/services/processingService.js line 179, and all other frontend pages use base44.entities.Transcript.filter()).",
+      "consequence": "Users cannot find lectures by transcript content despite UI advertising this capability. Search will never match transcript text, breaking a core requirement.",
+      "correction": "Load Transcript entities at mount using base44.entities.Transcript.filter({}, 'timestamp', 2000), build a map of lecture_id to concatenated transcript text, then search that map instead of the non-existent lecture.full_transcript field."
+    }
+  ],
+  "reviewDoc": "/Users/mark/Context Aware/.agents/tasks/search-page/review.md"
+}

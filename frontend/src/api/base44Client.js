@@ -195,6 +195,8 @@ class Base44Client {
     },
     forgotPassword: (email) => this.post('/auth/forgot-password', { email }),
     resetPassword: (data) => this.post('/auth/reset-password', data),
+    changePassword: (currentPassword, newPassword) => 
+      this.post('/auth/change-password', { currentPassword, newPassword }),
     verifyOtp: (data) => this.post('/auth/verify-otp', data),
     resendOtp: (email) => this.post('/auth/resend-otp', { email }),
     me: () => this.get('/auth/me', {}, { cache: false }),

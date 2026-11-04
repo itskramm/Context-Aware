@@ -8,7 +8,6 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/SidebarLayout';
-import RoleRoute from '@/components/RoleRoute';
 import { ThemeProvider } from "next-themes";
 import { Navigate } from 'react-router-dom';
 // Add page imports here
@@ -27,8 +26,6 @@ import DigestResults from '@/pages/DigestResult';
 import SearchPage from '@/pages/SearchPage';
 import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
-import UserManagement from '@/pages/UserManagement';
-import AdminPanel from '@/pages/Adminpanel';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -73,12 +70,6 @@ const AuthenticatedApp = () => {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
-          <Route element={<RoleRoute allow={["Super Admin"]} />}>
-            <Route path="/users" element={<UserManagement />} />
-          </Route>
-          <Route element={<RoleRoute allow={["Super Admin", "Admin"]} />}>
-            <Route path="/admin" element={<AdminPanel />} />
-          </Route>
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

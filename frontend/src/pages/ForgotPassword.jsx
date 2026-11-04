@@ -11,7 +11,7 @@ import { sendOtp, verifyOtp } from "@/lib/emailService";
 import { toast } from "@/components/ui/use-toast";
 import { validateEmail } from "@/lib/authValidations";
 
-const MAX_OTP_ATTEMPTS = 5;
+const MAX_OTP_ATTEMPTS = 3;
 const RESEND_COOLDOWN = 60;
 
 export default function ForgotPassword() {

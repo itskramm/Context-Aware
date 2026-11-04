@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, Palette, Sliders, Shield, Trash2, Loader2 } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette, Sliders, Shield, Trash2, Loader2, Lock } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { toast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import PasswordInput from '@/components/PasswordInput';
+import PasswordStrength from '@/components/PasswordStrength';
+import { validatePassword } from '@/lib/authValidations';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -14,6 +18,13 @@ export default function Settings() {
   const [digestDepth, setDigestDepth] = useState('standard');
   const [playbackSpeed, setPlaybackSpeed] = useState('1x');
   const [notifications, setNotifications] = useState(true);
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
   
   // Delete loading states
   const [deletingLectures, setDeletingLectures] = useState(false);
@@ -101,6 +112,50 @@ export default function Settings() {
       toast({ title: 'Failed to delete digests', description: err?.message, variant: 'destructive' });
     } finally {
       setDeletingDigests(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    // Validate inputs
+    if (!currentPassword) {
+      setPasswordError('Current password is required');
+      return;
+    }
+
+    const passwordValidation = validatePassword(newPassword);
+    if (passwordValidation) {
+      setPasswordError(passwordValidation);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('New password must be different from current password');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await base44.auth.changePassword(currentPassword, newPassword);
+      toast({ 
+        title: 'Password changed', 
+        description: 'Your password has been updated successfully.' 
+      });
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      setPasswordError(err?.message || 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -254,6 +309,78 @@ export default function Settings() {
               Delete account (contact support)
             </button>
           </div>
+        </div>
+
+        {/* Change Password */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Lock className="w-5 h-5 text-muted-foreground" />
+            <h3 className="font-semibold">CHANGE PASSWORD</h3>
+          </div>
+
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {passwordError && (
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                {passwordError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Current Password</label>
+              <PasswordInput
+                value={currentPassword}
+                onChange={setCurrentPassword}
+                placeholder="Enter current password"
+                autoComplete="current-password"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Password</label>
+              <PasswordInput
+                value={newPassword}
+                onChange={setNewPassword}
+                placeholder="Enter new password"
+                autoComplete="new-password"
+              />
+              <PasswordStrength password={newPassword} />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Confirm New Password</label>
+              <PasswordInput
+                value={confirmNewPassword}
+                onChange={setConfirmNewPassword}
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                onPaste={(e) => {
+                  e.preventDefault();
+                  toast({
+                    title: 'Paste disabled',
+                    description: 'Please type your password again manually.',
+                  });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Copy/paste is disabled — please type the password again.
+              </p>
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={changingPassword}
+              className="w-full sm:w-auto"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Changing password...
+                </>
+              ) : (
+                'Change password'
+              )}
+            </Button>
+          </form>
         </div>
       </div>
     </div>

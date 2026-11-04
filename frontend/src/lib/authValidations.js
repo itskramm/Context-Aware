@@ -1,6 +1,6 @@
 // Shared validation helpers for the authentication flows.
 
-export const ACCESS_TYPES = ["Super Admin", "Admin", "User"];
+export const ACCESS_TYPES = ["User"];
 
 // ---------- Full Name ----------
 // Letters only; numbers are not allowed. Hyphens, apostrophes and spaces

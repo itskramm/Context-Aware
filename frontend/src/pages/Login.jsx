@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -8,21 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LogIn, Mail, Loader2, CheckCircle2, Lock, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import PasswordInput from "@/components/PasswordInput";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { recordPasswordHash } from "@/lib/passwordHistory";
-
-const MAX_ATTEMPTS = 3;
-const LOCKOUT_MS = 5 * 60 * 1000;
-
-const lockoutKey = (email) => `login_lockout:${String(email).toLowerCase()}`;
-const readLockout = (email) => {
-  try {
-    return JSON.parse(localStorage.getItem(lockoutKey(email)) || "null");
-  } catch {
-    return null;
-  }
-};
 
 export default function Login() {
   const { login } = useAuth();
@@ -34,55 +21,20 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lockUntil, setLockUntil] = useState(0);
-  const [now, setNow] = useState(Date.now());
 
   const returnTo = safeReturnTo();
   const urlParams = new URLSearchParams(window.location.search);
   const registered = urlParams.get("registered") === "1";
   const resetDone = urlParams.get("reset") === "1";
 
-  // Re-check any existing lockout for the remembered email on mount.
-  useEffect(() => {
-    if (rememberedEmail) {
-      const l = readLockout(rememberedEmail);
-      if (l && l.until > Date.now()) setLockUntil(l.until);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Countdown ticker while a lockout is active.
-  useEffect(() => {
-    if (!lockUntil) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [lockUntil]);
-
-  const lockRemainingSec = Math.max(0, Math.ceil((lockUntil - now) / 1000));
-  const locked = lockRemainingSec > 0;
-  const mm = Math.floor(lockRemainingSec / 60);
-  const ss = String(lockRemainingSec % 60).padStart(2, "0");
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    const key = lockoutKey(email);
-    const lock = readLockout(email);
-
-    // An expired lock resets the attempt counter to a fresh start.
-    if (lock && lock.until > Date.now()) {
-      setLockUntil(lock.until);
-      setError(
-        "Too many unsuccessful login attempts. Your login has been temporarily blocked. Please try again in 5 minutes."
-      );
-      return;
-    }
-
     setLoading(true);
+    
     try {
       const response = await base44.auth.loginViaEmailPassword(email, password);
-      localStorage.removeItem(key);
+      
       if (remember) localStorage.setItem("remembered_email", email);
       else localStorage.removeItem("remembered_email");
       
@@ -100,21 +52,8 @@ export default function Login() {
       const destination = returnTo === "/" ? "/dashboard" : returnTo;
       navigate(destination);
     } catch (err) {
-      const attempts = (lock && lock.until > Date.now() ? lock.attempts : 0) + 1;
-      if (attempts >= MAX_ATTEMPTS) {
-        const until = Date.now() + LOCKOUT_MS;
-        localStorage.setItem(key, JSON.stringify({ attempts, until }));
-        setLockUntil(until);
-        setError(
-          "Too many unsuccessful login attempts. Your login has been temporarily blocked. Please try again in 5 minutes."
-        );
-      } else {
-        localStorage.setItem(key, JSON.stringify({ attempts, until: 0 }));
-        const left = MAX_ATTEMPTS - attempts;
-        setError(
-          `Invalid email or password. ${left} attempt${left === 1 ? "" : "s"} remaining before your login is temporarily blocked.`
-        );
-      }
+      const msg = err?.message || "Login failed. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -156,12 +95,6 @@ export default function Login() {
         </div>
       )}
 
-      {locked && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          Login temporarily blocked. Please try again in {mm}:{ss}.
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Username / Email Address</Label>
@@ -176,7 +109,6 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10 h-12"
-              disabled={locked}
               required
             />
           </div>
@@ -193,7 +125,6 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-10 h-12 pr-11"
-              disabled={locked}
               required
             />
             <button
@@ -221,7 +152,7 @@ export default function Login() {
             Forgot password?
           </Link>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || locked}>
+        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

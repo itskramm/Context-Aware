@@ -11,7 +11,7 @@ const OTP_TEMPLATE = import.meta.env.VITE_EMAILJS_OTP_TEMPLATE_ID;
 const RST_TEMPLATE = import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID;
 const PUBLIC_KEY   = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const OTP_STORE_KEY = 'ca_otp_session';
 
 // ---------- helpers ----------

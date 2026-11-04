@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, Mail, Loader2, MapPin, Phone, Calendar, User as UserIcon } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/PasswordInput";
@@ -22,13 +21,12 @@ import {
   validatePassword,
   toISODate,
   latestSelectableBirthday,
-  ACCESS_TYPES,
 } from "@/lib/authValidations";
 import { recordPasswordHash } from "@/lib/passwordHistory";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { sendOtp, verifyOtp } from "@/lib/emailService";
 
-const MAX_OTP_ATTEMPTS = 5;
+const MAX_OTP_ATTEMPTS = 3;
 const RESEND_COOLDOWN = 60;
 
 export default function Register() {
@@ -37,7 +35,6 @@ export default function Register() {
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
-  const [accessType, setAccessType] = useState("User");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
@@ -110,7 +107,6 @@ export default function Register() {
       address: address.trim() ? "" : "Address is required.",
       email: validateEmail(email),
       mobile: validateMobile(mobile),
-      accessType: ACCESS_TYPES.includes(accessType) ? "" : "Please select an access type.",
       password: validatePassword(password),
       confirmPassword: password === confirmPassword ? "" : "Passwords do not match.",
     };
@@ -165,7 +161,7 @@ export default function Register() {
         address: address.trim(),
         mobile_number: normalizeMobile(mobile),
         username: email,
-        access_type: accessType,
+        access_type: "User",
       });
       await recordPasswordHash(email, password);
     } catch (profileErr) {
@@ -335,49 +331,23 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Mobile */}
-          <div className="space-y-2">
-            <Label htmlFor="mobile">Mobile Phone Number</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-              <Input
-                id="mobile"
-                inputMode="tel"
-                value={mobile}
-                onChange={onMobileChange}
-                placeholder="09171234567 or +639171234567"
-                className="pl-10 h-12"
-                required
-              />
-            </div>
-            {errors.mobile && <p className="text-xs text-destructive">{errors.mobile}</p>}
-            <p className="text-xs text-muted-foreground">Philippine numbers only: 09XXXXXXXXX or +639XXXXXXXXX.</p>
+        {/* Mobile */}
+        <div className="space-y-2">
+          <Label htmlFor="mobile">Mobile Phone Number</Label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              id="mobile"
+              inputMode="tel"
+              value={mobile}
+              onChange={onMobileChange}
+              placeholder="09171234567 or +639171234567"
+              className="pl-10 h-12"
+              required
+            />
           </div>
-
-          {/* Access Type */}
-          <div className="space-y-2">
-            <Label htmlFor="accessType">Access Type</Label>
-            <Select
-              value={accessType}
-              onValueChange={(v) => {
-                setAccessType(v);
-                setErr("accessType", "");
-              }}
-            >
-              <SelectTrigger id="accessType" className="h-12">
-                <SelectValue placeholder="Select access type" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACCESS_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.accessType && <p className="text-xs text-destructive">{errors.accessType}</p>}
-          </div>
+          {errors.mobile && <p className="text-xs text-destructive">{errors.mobile}</p>}
+          <p className="text-xs text-muted-foreground">Philippine numbers only: 09XXXXXXXXX or +639XXXXXXXXX.</p>
         </div>
 
         {/* Password */}

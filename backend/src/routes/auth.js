@@ -43,8 +43,15 @@ router.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       name,
-      role: ['admin', 'professor', 'student'].includes(role) ? role : 'student',
+      birthday: null,
+      address: null,
+      mobile_number: null,
+      username: email,
+      role: 'User',
       access_type: 'User',
+      passwordHistory: [],
+      failedLoginAttempts: 0,
+      loginLockedUntil: null,
       createdAt: new Date().toISOString(),
       lastLogin: null,
       preferences: { theme: 'light', notifications: true },
@@ -86,14 +93,53 @@ router.post('/login', async (req, res) => {
 
     const userDoc = snapshot.docs[0];
     const user = userDoc.data();
+
+    // Check if account is locked
+    if (user.loginLockedUntil && new Date(user.loginLockedUntil) > new Date()) {
+      const remainingMs = new Date(user.loginLockedUntil) - new Date();
+      const remainingSec = Math.ceil(remainingMs / 1000);
+      console.warn(`[Auth] Account locked: ${email}, remaining: ${remainingSec}s`);
+      return res.status(429).json({ 
+        error: 'Too many unsuccessful login attempts. Your login has been temporarily blocked.',
+        lockedUntil: user.loginLockedUntil,
+        remainingSeconds: remainingSec
+      });
+    }
+
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
-      console.warn(`[Auth] Login failed – wrong password: ${email}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      // Increment failed attempts
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      const updates = { failedLoginAttempts: attempts };
+
+      if (attempts >= 3) {
+        // Lock account for 5 minutes
+        const lockUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        updates.loginLockedUntil = lockUntil;
+        await userDoc.ref.update(updates);
+        console.warn(`[Auth] Account locked after ${attempts} attempts: ${email}`);
+        return res.status(429).json({ 
+          error: 'Too many unsuccessful login attempts. Your login has been temporarily blocked. Please try again in 5 minutes.',
+          lockedUntil: lockUntil
+        });
+      } else {
+        await userDoc.ref.update(updates);
+        const remaining = 3 - attempts;
+        console.warn(`[Auth] Login failed – wrong password: ${email}, attempts: ${attempts}`);
+        return res.status(401).json({ 
+          error: `Invalid credentials. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your login is temporarily blocked.`
+        });
+      }
     }
 
-    await userDoc.ref.update({ lastLogin: new Date().toISOString() });
+    // Successful login - reset attempts
+    await userDoc.ref.update({ 
+      lastLogin: new Date().toISOString(),
+      failedLoginAttempts: 0,
+      loginLockedUntil: null
+    });
+    
     const token = makeToken({ userId: userDoc.id, email: user.email, role: user.role });
 
     console.log(`[Auth] Login success: ${email}`);
@@ -218,14 +264,86 @@ router.post('/reset-password', async (req, res) => {
     }
 
     const userDoc = snapshot.docs[0];
+    const user = userDoc.data();
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await userDoc.ref.update({ password: hashedPassword, updatedAt: new Date().toISOString() });
+    
+    // Update password history - keep last 5
+    const passwordHistory = user.passwordHistory || [];
+    if (user.password) {
+      passwordHistory.unshift(user.password);
+    }
+    const updatedHistory = passwordHistory.slice(0, 5);
+    
+    await userDoc.ref.update({ 
+      password: hashedPassword, 
+      passwordHistory: updatedHistory,
+      updatedAt: new Date().toISOString() 
+    });
 
     console.log(`[Auth] Password reset complete: ${email}`);
     res.json({ message: 'Password updated successfully.' });
   } catch (error) {
     console.error('[Auth] Reset password error:', error);
     res.status(500).json({ error: 'Failed to reset password', details: error.message });
+  }
+});
+
+// ─── Change password (authenticated users) ───────────────────────────────────
+
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userDoc.data();
+
+    // Verify current password
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Check if new password was used before (in last 5 passwords)
+    const passwordHistory = user.passwordHistory || [];
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Check against current password
+    const reusedCurrent = await bcrypt.compare(newPassword, user.password);
+    if (reusedCurrent) {
+      return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
+    }
+    
+    // Check against password history
+    for (const oldHash of passwordHistory) {
+      const reused = await bcrypt.compare(newPassword, oldHash);
+      if (reused) {
+        return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
+      }
+    }
+
+    // Update password and history
+    const updatedHistory = [user.password, ...passwordHistory].slice(0, 5);
+    await userDoc.ref.update({
+      password: hashedNewPassword,
+      passwordHistory: updatedHistory,
+      updatedAt: new Date().toISOString()
+    });
+
+    console.log(`[Auth] Password changed: ${req.user.userId}`);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('[Auth] Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password', details: error.message });
   }
 });
 

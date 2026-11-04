@@ -1,6 +1,7 @@
 import express from 'express';
 import { getFirestore } from '../config/database.js';
 import { generateSummaryWithGroq, generateQuestionsWithGroq } from '../services/groqService.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -271,5 +272,68 @@ function formatDuration(seconds) {
   }
   return `${seconds}s`;
 }
+
+// Record password hash in user's password history
+router.post('/recordPasswordHash', authenticate, async (req, res) => {
+  try {
+    const { password_hash } = req.body;
+    
+    if (!password_hash) {
+      return res.status(400).json({ error: 'password_hash is required' });
+    }
+    
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userDoc.data();
+    const passwordHistory = user.passwordHistory || [];
+    
+    // Add new hash to beginning, keep only last 5
+    const updatedHistory = [password_hash, ...passwordHistory].slice(0, 5);
+    
+    await userDoc.ref.update({
+      passwordHistory: updatedHistory,
+      updatedAt: new Date().toISOString()
+    });
+    
+    res.json({ message: 'Password hash recorded', historyLength: updatedHistory.length });
+  } catch (error) {
+    console.error('Record password hash error:', error);
+    res.status(500).json({ error: 'Failed to record password hash', details: error.message });
+  }
+});
+
+// Check if a password hash was previously used
+router.post('/checkPasswordReuse', async (req, res) => {
+  try {
+    const { email, candidate_hash } = req.body;
+    
+    if (!email || !candidate_hash) {
+      return res.status(400).json({ error: 'email and candidate_hash are required' });
+    }
+    
+    const db = getFirestore();
+    const snapshot = await db.collection('users').where('email', '==', email).get();
+    
+    if (snapshot.empty) {
+      return res.json({ reused: false });
+    }
+    
+    const user = snapshot.docs[0].data();
+    const passwordHistory = user.passwordHistory || [];
+    
+    // Check if candidate hash exists in history
+    const reused = passwordHistory.includes(candidate_hash);
+    
+    res.json({ reused });
+  } catch (error) {
+    console.error('Check password reuse error:', error);
+    res.status(500).json({ error: 'Failed to check password reuse', details: error.message });
+  }
+});
 
 export default router;
