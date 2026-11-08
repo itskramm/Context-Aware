@@ -91,21 +91,10 @@ export default function ActivityAnalytics() {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   };
 
-  // Format date for display
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const formatMonthYear = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
-
   // Render stats cards
   const renderStatsCards = (totals, labels) => {
     return (
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl bg-background/50 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -124,52 +113,6 @@ export default function ActivityAnalytics() {
           </div>
           <p className="text-3xl font-bold">{totals.digests}</p>
         </div>
-      </div>
-    );
-  };
-
-  // Render simple bar visualization
-  const renderBarChart = (data, formatLabel) => {
-    if (!data || data.length === 0) {
-      return <div className="text-center py-4 text-sm text-muted-foreground">No data available</div>;
-    }
-
-    const maxTotal = Math.max(...data.map(d => d.lectures + d.digests), 1);
-
-    return (
-      <div className="space-y-3">
-        {data.map((item, idx) => {
-          const total = item.lectures + item.digests;
-          const lecturesPercent = maxTotal > 0 ? (item.lectures / maxTotal) * 100 : 0;
-          const digestsPercent = maxTotal > 0 ? (item.digests / maxTotal) * 100 : 0;
-
-          return (
-            <div key={idx} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{formatLabel(item)}</span>
-                <span className="font-medium">{total} total</span>
-              </div>
-              <div className="flex gap-1 h-6 rounded-md overflow-hidden bg-muted">
-                {lecturesPercent > 0 && (
-                  <div
-                    className="bg-primary flex items-center justify-center text-[10px] text-primary-foreground font-medium"
-                    style={{ width: `${lecturesPercent}%` }}
-                  >
-                    {item.lectures > 0 && <span className="px-1">{item.lectures}</span>}
-                  </div>
-                )}
-                {digestsPercent > 0 && (
-                  <div
-                    className="bg-primary/60 flex items-center justify-center text-[10px] text-primary-foreground font-medium"
-                    style={{ width: `${digestsPercent}%` }}
-                  >
-                    {item.digests > 0 && <span className="px-1">{item.digests}</span>}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
       </div>
     );
   };
@@ -229,17 +172,14 @@ export default function ActivityAnalytics() {
 
         <TabsContent value="day" className="mt-0">
           {renderStatsCards(dayTotals, { lectures: 'Lectures (14 days)', digests: 'Digests (14 days)' })}
-          {renderBarChart(recentDays, (item) => formatDate(item.date))}
         </TabsContent>
 
         <TabsContent value="week" className="mt-0">
           {renderStatsCards(weekTotals, { lectures: 'Lectures (8 weeks)', digests: 'Digests (8 weeks)' })}
-          {renderBarChart(weeklyData, (item) => `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`)}
         </TabsContent>
 
         <TabsContent value="month" className="mt-0">
           {renderStatsCards(monthTotals, { lectures: 'Lectures (6 months)', digests: 'Digests (6 months)' })}
-          {renderBarChart(monthlyData, (item) => formatMonthYear(item.date))}
         </TabsContent>
       </Tabs>
     </div>
