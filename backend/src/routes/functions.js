@@ -175,6 +175,9 @@ Respond in JSON format:
     const totalDuration = digestData.segments.reduce((sum, seg) => sum + (seg.end_time - seg.start_time), 0);
     const estimatedTimeSaved = Math.max(0, (lecture.duration || 0) - totalDuration);
     
+    // Generate topic-based search queries
+    const relatedQueries = generateTopicSearchQueries(digestData.title, learning_goal, digestData.topics || topics);
+    
     // Create digest in Firestore
     const digestRef = await db.collection('digests').add({
       lectureId: lecture_id,
@@ -185,6 +188,7 @@ Respond in JSON format:
       use_history: use_history,
       relevance_explanation: digestData.relevance_explanation,
       key_takeaways: digestData.key_takeaways || [],
+      related_queries: relatedQueries,
       duration: totalDuration,
       duration_label: formatDuration(totalDuration),
       lecture_duration: lecture.duration || 0,
@@ -271,6 +275,55 @@ function formatDuration(seconds) {
     return `${minutes}m`;
   }
   return `${seconds}s`;
+}
+
+// Generate Google-style search queries based on digest topics
+function generateTopicSearchQueries(title, learningGoal, topics = []) {
+  const queries = [];
+  
+  // Extract main topics (up to 3)
+  const mainTopics = topics.slice(0, 3).map(t => 
+    typeof t === 'string' ? t : t.name || t.title || ''
+  ).filter(Boolean);
+  
+  // Extract main subject from title
+  const mainSubject = title.split(/[:\-–—]/)[0].trim() || learningGoal.split(/\s+/).slice(0, 3).join(' ');
+  
+  // Common question patterns
+  const patterns = [
+    (topic) => `what is ${topic.toLowerCase()}?`,
+    (topic) => `${topic.toLowerCase()} explained`,
+    (topic) => `how to understand ${topic.toLowerCase()}`,
+    (topic) => `${topic.toLowerCase()} examples`,
+    (topic) => `best resources for ${topic.toLowerCase()}`,
+  ];
+  
+  // Generate queries from main topics
+  mainTopics.forEach((topic, idx) => {
+    if (idx < patterns.length) {
+      queries.push(patterns[idx](topic));
+    }
+  });
+  
+  // Add subject-level queries if we have a main subject
+  if (mainSubject && queries.length < 5) {
+    queries.push(`${mainSubject.toLowerCase()} tutorial`);
+  }
+  if (learningGoal && queries.length < 6) {
+    queries.push(`how to ${learningGoal.toLowerCase()}`);
+  }
+  
+  // Add comparative query if we have multiple topics
+  if (mainTopics.length >= 2 && queries.length < 7) {
+    queries.push(`${mainTopics[0].toLowerCase()} vs ${mainTopics[1].toLowerCase()}`);
+  }
+  
+  // Fallback queries
+  if (queries.length === 0) {
+    queries.push('explore this topic', 'learn more about this subject');
+  }
+  
+  return queries.slice(0, 7); // Return max 7 queries
 }
 
 // Record password hash in user's password history

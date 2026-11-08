@@ -33,58 +33,6 @@ import SegmentCard from "@/components/digest/SegmentCard";
 import TranscriptRow from "@/components/TranscriptRow";
 import { toast } from "@/components/ui/use-toast";
 
-// Generate Google-style search queries based on digest topics
-function generateSearchQueries(digest) {
-  const queries = [];
-  const topics = digest?.content?.topics || digest?.topics || [];
-  const learningGoal = digest?.learning_goal || '';
-  const title = digest?.title || '';
-  
-  // Extract key terms from topics
-  const mainTopics = topics.slice(0, 3).map(t => 
-    typeof t === 'string' ? t : t.name || t.title || ''
-  ).filter(Boolean);
-  
-  // Extract main subject from title or learning goal
-  const mainSubject = title.split(/[:\-–—]/)[0].trim() || learningGoal.split(/\s+/).slice(0, 3).join(' ');
-  
-  // Common question patterns
-  const patterns = [
-    (topic) => `what is ${topic.toLowerCase()}?`,
-    (topic) => `${topic.toLowerCase()} explained`,
-    (topic) => `how to understand ${topic.toLowerCase()}`,
-    (topic) => `${topic.toLowerCase()} examples`,
-    (topic) => `best resources for ${topic.toLowerCase()}`,
-  ];
-  
-  // Generate queries from main topics
-  mainTopics.forEach((topic, idx) => {
-    if (idx < patterns.length) {
-      queries.push(patterns[idx](topic));
-    }
-  });
-  
-  // Add subject-level queries if we have a main subject
-  if (mainSubject && queries.length < 5) {
-    queries.push(`${mainSubject.toLowerCase()} tutorial`);
-  }
-  if (learningGoal && queries.length < 6) {
-    queries.push(`how to ${learningGoal.toLowerCase()}`);
-  }
-  
-  // Add comparative query if we have multiple topics
-  if (mainTopics.length >= 2 && queries.length < 7) {
-    queries.push(`${mainTopics[0].toLowerCase()} vs ${mainTopics[1].toLowerCase()}`);
-  }
-  
-  // Fallback queries
-  if (queries.length === 0) {
-    queries.push('explore this topic', 'learn more about this subject');
-  }
-  
-  return queries.slice(0, 6); // Return max 6 queries
-}
-
 export default function DigestResults() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -370,19 +318,23 @@ export default function DigestResults() {
           {/* Topic-based search queries */}
           <div className="rounded-2xl border border-border bg-card p-4">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Search className="w-4 h-4" /> Explore Topics
+              <Search className="w-4 h-4" /> Relevant Segments
             </h3>
             <div className="space-y-2">
-              {generateSearchQueries(digest).map((query, i) => (
-                <button
-                  key={i}
-                  onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank')}
-                  className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
-                >
-                  <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                  <span className="flex-1">{query}</span>
-                </button>
-              ))}
+              {(digest.related_queries || []).length > 0 ? (
+                digest.related_queries.map((query, i) => (
+                  <button
+                    key={i}
+                    onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank')}
+                    className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
+                  >
+                    <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                    <span className="flex-1">{query}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No related queries available.</p>
+              )}
             </div>
           </div>
 
