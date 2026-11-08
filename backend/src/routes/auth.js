@@ -298,7 +298,7 @@ router.post('/reset-password', async (req, res) => {
 
 // ─── Change password (authenticated users) ───────────────────────────────────
 
-router.post('/change-password', authenticate, async (req, res) => {
+router.patch('/change-password', authenticate, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -322,21 +322,22 @@ router.post('/change-password', authenticate, async (req, res) => {
     }
 
     // Check if new password was used before (in last 5 passwords)
+    // Use constant-time comparison by checking all entries regardless of match
     const passwordHistory = user.passwordHistory || [];
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     
-    // Check against current password
-    const reusedCurrent = await bcrypt.compare(newPassword, user.password);
-    if (reusedCurrent) {
-      return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
-    }
+    // Collect all hashes to check (current password + history)
+    const allPreviousHashes = [user.password, ...passwordHistory].slice(0, 5);
     
-    // Check against password history
-    for (const oldHash of passwordHistory) {
-      const reused = await bcrypt.compare(newPassword, oldHash);
-      if (reused) {
-        return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
-      }
+    // Check all hashes in constant time (don't early return)
+    const comparisonResults = await Promise.all(
+      allPreviousHashes.map(hash => bcrypt.compare(newPassword, hash))
+    );
+    
+    // Check if any comparison matched
+    const isReused = comparisonResults.some(result => result === true);
+    if (isReused) {
+      return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
     }
 
     // Update password and history

@@ -58,7 +58,7 @@ export default function Settings() {
     
     setChangingPassword(true);
     try {
-      await base44.post('/auth/change-password', {
+      await base44.patch('/auth/change-password', {
         currentPassword,
         newPassword,
       });
