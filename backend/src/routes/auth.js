@@ -16,7 +16,15 @@ function makeToken(payload) {
 
 function safeUser(doc) {
   const d = doc.data();
-  return { id: doc.id, email: d.email, name: d.name, role: d.role, access_type: d.access_type };
+  return { 
+    id: doc.id, 
+    email: d.email, 
+    name: d.name, 
+    role: d.role, 
+    access_type: d.access_type,
+    photoURL: d.photoURL,
+    createdAt: d.createdAt
+  };
 }
 
 // ─── Register ────────────────────────────────────────────────────────────────
@@ -185,7 +193,7 @@ router.get('/me', authenticate, async (req, res) => {
 
 router.patch('/me', authenticate, async (req, res) => {
   try {
-    const allowed = ['name', 'birthday', 'address', 'mobile_number', 'username', 'access_type', 'preferences'];
+    const allowed = ['name', 'birthday', 'address', 'mobile_number', 'username', 'access_type', 'preferences', 'photoURL'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
