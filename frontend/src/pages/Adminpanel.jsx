@@ -115,7 +115,6 @@ export default function Dashboard() {
   const [lectures, setLectures] = useState([]);
   const [digests, setDigests] = useState([]);
   const [lectureMap, setLectureMap] = useState({});
-  const [totalSaved, setTotalSaved] = useState(0);
 
   const firstName = (user?.name || user?.full_name || user?.email?.split("@")[0] || "there").split(" ")[0];
 
@@ -133,7 +132,6 @@ export default function Dashboard() {
       const map = {};
       lecs.forEach((l) => { map[l.id] = l; });
       setLectureMap(map);
-      setTotalSaved(digs.reduce((sum, d) => sum + (d.estimated_time_saved || 0), 0));
     } catch (err) {
       toast({ title: "Could not load dashboard", description: err?.message || "Please try again.", variant: "destructive" });
     } finally {
@@ -170,16 +168,10 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
         <StatCard icon={Library} label="Total Lectures" value={lectures.length} />
         <StatCard icon={Clapperboard} label="Total Digests" value={digests.length} />
         <StatCard icon={Eye} label="Recently Viewed" value={lectures.filter((l) => l.view_count > 0).length} />
-        <StatCard
-          icon={Clock}
-          label="Review Time Saved"
-          value={compactDuration(totalSaved)}
-          sub="across all digests"
-        />
       </div>
 
       <ActivityAnalytics />

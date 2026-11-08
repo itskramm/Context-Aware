@@ -173,7 +173,6 @@ export default function Dashboard() {
   const [lectures, setLectures] = useState([]);
   const [digests, setDigests] = useState([]);
   const [lectureMap, setLectureMap] = useState({});
-  const [totalSaved, setTotalSaved] = useState(0);
 
   const firstName = (user?.name || user?.full_name || user?.email?.split("@")[0] || "there").split(" ")[0];
 
@@ -191,7 +190,6 @@ export default function Dashboard() {
       const map = {};
       lecs.forEach((l) => { map[l.id] = l; });
       setLectureMap(map);
-      setTotalSaved(digs.reduce((sum, d) => sum + (d.estimated_time_saved || 0), 0));
     } catch (err) {
       toast({ title: "Could not load dashboard", description: err?.message || "Please try again.", variant: "destructive" });
     } finally {

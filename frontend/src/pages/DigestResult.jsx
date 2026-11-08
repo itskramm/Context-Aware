@@ -273,12 +273,11 @@ export default function DigestResults() {
       </div>
 
       {/* Metadata */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         <MetaCard icon={BookOpen} label="Lecture" value={lecture?.title || "—"} />
         <MetaCard icon={Target} label="Learning goal" value={digest.learning_goal || "—"} />
         <MetaCard icon={Clock} label="Digest duration" value={digest.duration_label || compactDuration(digestDuration)} />
         <MetaCard icon={Clock} label="Lecture length" value={digest.lecture_duration_label || formatDuration(lecture?.duration)} />
-        <MetaCard icon={Sparkles} label="Time saved" value={digest.estimated_time_saved_label || compactDuration(Math.max(0, (lecture?.duration || 0) - digestDuration))} />
         <MetaCard icon={Calendar} label="Created" value={relativeDate(digest.created_date || digest.createdAt)} />
       </div>
 

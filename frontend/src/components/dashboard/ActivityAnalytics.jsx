@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { Loader2, Library, Sparkles, Timer } from 'lucide-react';
-
-function fmtTime(seconds) {
-  if (!seconds || seconds < 60) return `${Math.round(seconds || 0)}s`;
-  const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  const rem = m % 60;
-  return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
-}
+import { Loader2, Library, Sparkles } from 'lucide-react';
 
 export default function ActivityAnalytics() {
   const { user } = useAuth();
@@ -57,9 +48,6 @@ export default function ActivityAnalytics() {
 
   const daily = analytics.dailyActivity || [];
   const todayData = daily[daily.length - 1] || { lectures: 0, digests: 0 };
-  const savedToday = analytics.totalTimeSavedSeconds > 0 
-    ? fmtTime(Math.round(analytics.totalTimeSavedSeconds / Math.max(analytics.totalDigests, 1)))
-    : '0m';
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 mb-10">
@@ -67,7 +55,7 @@ export default function ActivityAnalytics() {
       <p className="text-xs text-muted-foreground mb-6">Your activity for today.</p>
 
       {/* Today's stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl bg-background/50 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -85,15 +73,6 @@ export default function ActivityAnalytics() {
             <p className="text-xs text-muted-foreground font-medium">Digests today</p>
           </div>
           <p className="text-3xl font-bold">{todayData.digests}</p>
-        </div>
-        <div className="rounded-xl bg-background/50 border border-border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Timer className="w-4 h-4" />
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">Saved today</p>
-          </div>
-          <p className="text-3xl font-bold">{savedToday}</p>
         </div>
       </div>
     </div>
