@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { Sun, Moon, Monitor, Palette, Shield, Trash2, Loader2 } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette, Shield, Trash2, Loader2, Lock } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { toast } from '@/components/ui/use-toast';
+import PasswordInput from '@/components/PasswordInput';
+import PasswordStrength from '@/components/PasswordStrength';
+import { validatePassword } from '@/lib/authValidations';
+import { Button } from '@/components/ui/button';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -12,6 +16,72 @@ export default function Settings() {
   // Delete loading states
   const [deletingLectures, setDeletingLectures] = useState(false);
   const [deletingDigests, setDeletingDigests] = useState(false);
+  
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    
+    // Validate inputs
+    if (!currentPassword) {
+      toast({ title: 'Validation error', description: 'Current password is required.', variant: 'destructive' });
+      return;
+    }
+    
+    if (!newPassword) {
+      toast({ title: 'Validation error', description: 'New password is required.', variant: 'destructive' });
+      return;
+    }
+    
+    // Validate new password strength
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      toast({ title: 'Validation error', description: passwordError, variant: 'destructive' });
+      return;
+    }
+    
+    // Check passwords match
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: 'Validation error', description: 'New passwords do not match.', variant: 'destructive' });
+      return;
+    }
+    
+    // Check that new password is different from current
+    if (currentPassword === newPassword) {
+      toast({ title: 'Validation error', description: 'New password must be different from current password.', variant: 'destructive' });
+      return;
+    }
+    
+    setChangingPassword(true);
+    try {
+      await base44.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+      
+      toast({ 
+        title: 'Password changed', 
+        description: 'Your password has been updated successfully.' 
+      });
+      
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      toast({ 
+        title: 'Failed to change password', 
+        description: err?.message || 'Please check your current password and try again.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const handleDeleteLectures = async () => {
     if (!window.confirm('Delete all your lectures? This will remove all uploaded lectures and their transcripts. This cannot be undone.')) {
@@ -69,6 +139,66 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6">
+        {/* Change Password */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Lock className="w-5 h-5 text-muted-foreground" />
+            <h3 className="font-semibold">CHANGE PASSWORD</h3>
+          </div>
+
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Current Password</label>
+              <PasswordInput
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">New Password</label>
+              <PasswordInput
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                disabled={changingPassword}
+              />
+              {newPassword && (
+                <div className="mt-2">
+                  <PasswordStrength password={newPassword} />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Confirm New Password</label>
+              <PasswordInput
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
+              className="w-full sm:w-auto"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Changing Password...
+                </>
+              ) : (
+                'Change Password'
+              )}
+            </Button>
+          </form>
+        </div>
+
         {/* Appearance */}
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-2 mb-4">

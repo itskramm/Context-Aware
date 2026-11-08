@@ -106,6 +106,28 @@ function LectureCard({ lecture }) {
 }
 
 function DigestCard({ digest, lecture }) {
+  // Get thumbnail from lecture
+  const thumbnailUrl = lecture?.thumbnail_url || lecture?.thumbnailUrl;
+  
+  // Get description/summary from digest
+  const getDescription = () => {
+    const content = digest?.content;
+    if (!content) return "No description available";
+    
+    // Try to get summary
+    if (content.summary) return content.summary;
+    
+    // Try to get first key takeaway
+    if (content.keyTakeaways && Array.isArray(content.keyTakeaways) && content.keyTakeaways.length > 0) {
+      return content.keyTakeaways[0];
+    }
+    if (content.key_takeaways && Array.isArray(content.key_takeaways) && content.key_takeaways.length > 0) {
+      return content.key_takeaways[0];
+    }
+    
+    return "Video digest";
+  };
+
   // Calculate digest duration if not available
   const getDigestDuration = () => {
     if (digest.duration) return digest.duration;
@@ -123,7 +145,7 @@ function DigestCard({ digest, lecture }) {
       const firstTs = parseTimestamp(chapters[0]?.timestamp || chapters[0]?.startTime || chapters[0]?.start_time);
       const lastTs = parseTimestamp(chapters[chapters.length - 1]?.timestamp || chapters[chapters.length - 1]?.startTime || chapters[chapters.length - 1]?.start_time);
       if (lastTs > firstTs) {
-        return (lastTs - firstTs) + 300; // Add 5 minutes for last chapter
+        return (lastTs - firstTs) + 300;
       }
     }
     
@@ -136,30 +158,37 @@ function DigestCard({ digest, lecture }) {
   };
 
   const digestDuration = getDigestDuration();
+  const description = getDescription();
   
   return (
     <Link
       to={`/digests/${digest.id}`}
-      className="group rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+      className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-sm transition-all"
     >
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          <Clapperboard className="w-5 h-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-foreground text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-            {digest.title}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {lecture?.title || "Lecture"}
-          </p>
-          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {digest.duration_label || compactDuration(digestDuration)}
-            </span>
-            <span>{relativeDate(digest.created_date)}</span>
+      <div className="relative aspect-video bg-muted">
+        {thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={digest.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+            <Clapperboard className="w-8 h-8" />
           </div>
+        )}
+        <span className="absolute bottom-2 right-2 text-[11px] font-medium px-1.5 py-0.5 rounded bg-black/70 text-white">
+          {digest.duration_label || compactDuration(digestDuration)}
+        </span>
+      </div>
+      <div className="p-4">
+        <p className="font-semibold text-foreground text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+          {digest.title}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+          {description}
+        </p>
+        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+          <span>{relativeDate(digest.created_date)}</span>
+          <span className="inline-flex items-center gap-1 text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            Open <ArrowRight className="w-3 h-3" />
+          </span>
         </div>
       </div>
     </Link>
