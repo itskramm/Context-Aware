@@ -241,81 +241,172 @@ export default function DigestResults() {
     const queries = [];
     const seen = new Set(); // Track unique topics to avoid duplicates
     
-    // Helper to add query if unique and meaningful
+    // Comprehensive blacklist of generic words to filter
+    const genericWords = new Set([
+      'digest', 'tutorial', 'lecture', 'guide', 'overview', 'introduction', 
+      'section', 'chapter', 'part', 'video', 'notes', 'summary', 'document'
+    ]);
+    
+    // Common filler words that don't count as meaningful content
+    const fillerWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+      'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been'
+    ]);
+    
+    // Clean topic by removing generic words
+    const cleanTopic = (topic) => {
+      if (!topic || typeof topic !== 'string') return '';
+      
+      const words = topic.split(/\s+/);
+      const cleanedWords = words.filter(word => {
+        const lower = word.toLowerCase();
+        return !genericWords.has(lower);
+      });
+      
+      return cleanedWords.join(' ').trim();
+    };
+    
+    // Check if topic is meaningful (not just generic words or numbers)
+    const isMeaningfulTopic = (topic) => {
+      if (!topic || topic.length < 3) return false;
+      
+      const lower = topic.toLowerCase().trim();
+      
+      // Reject if it's ONLY generic words
+      if (genericWords.has(lower)) return false;
+      
+      // Reject patterns like "section 1", "chapter 3", "part 2"
+      if (/^(section|chapter|part)\s*\d+$/i.test(lower)) return false;
+      
+      // Reject if only numbers
+      if (/^\d+$/.test(lower)) return false;
+      
+      // Count meaningful words (not fillers)
+      const words = lower.split(/\s+/).filter(w => w.length > 0);
+      const meaningfulWords = words.filter(w => !fillerWords.has(w) && !genericWords.has(w));
+      
+      // Must have at least 2 meaningful words OR be a single word of 4+ chars
+      if (meaningfulWords.length < 2 && !(meaningfulWords.length === 1 && meaningfulWords[0].length >= 4)) {
+        return false;
+      }
+      
+      return true;
+    };
+    
+    // Check if query meets quality threshold
+    const isQualityQuery = (query) => {
+      if (!query || query.length < 10) return false;
+      
+      const lower = query.toLowerCase();
+      
+      // Count meaningful words
+      const words = lower.replace(/[?.,!]/g, '').split(/\s+/).filter(w => w.length > 0);
+      const meaningfulWords = words.filter(w => !fillerWords.has(w) && !genericWords.has(w));
+      
+      // Must have at least 2 meaningful words
+      if (meaningfulWords.length < 2) return false;
+      
+      // Reject if it contains only generic combinations
+      const hasOnlyGeneric = words.every(w => genericWords.has(w) || fillerWords.has(w));
+      if (hasOnlyGeneric) return false;
+      
+      return true;
+    };
+    
+    // Helper to add query if unique and meets quality threshold
     const addQuery = (query) => {
-      if (!query || query.length < 5) return; // Skip empty or too short
-      const normalized = query.toLowerCase().trim();
+      if (!query) return;
+      
+      const trimmed = query.trim();
+      if (!isQualityQuery(trimmed)) return;
+      
+      const normalized = trimmed.toLowerCase();
       if (seen.has(normalized)) return;
+      
       seen.add(normalized);
-      queries.push(query);
+      queries.push(trimmed);
     };
     
     // Extract topics from multiple sources
     const topicsArray = digest.content?.topics || digest.topics || [];
-    const mainTopics = topicsArray.slice(0, 3).map(t => 
-      typeof t === "string" ? t : (t.name || t.title || "")
-    ).filter(Boolean);
+    const mainTopics = topicsArray.slice(0, 5).map(t => {
+      const topicStr = typeof t === "string" ? t : (t.name || t.title || "");
+      return cleanTopic(topicStr);
+    }).filter(t => isMeaningfulTopic(t));
     
     // Extract segment topics (chapter/section names)
-    const segmentTopics = segments.slice(0, 3).map(s => s.topic).filter(Boolean);
+    const segmentTopics = segments.slice(0, 5).map(s => {
+      const cleaned = cleanTopic(s.topic);
+      return cleaned;
+    }).filter(t => isMeaningfulTopic(t));
     
-    // Combine all topics and remove generic words
-    const allTopics = [...mainTopics, ...segmentTopics];
-    const meaningfulTopics = allTopics.filter(topic => {
-      const lower = topic.toLowerCase();
-      // Filter out generic words like "introduction", "overview", "section 1", etc.
-      return !lower.match(/^(introduction|overview|section \d+|chapter \d+|part \d+)$/i);
-    });
+    // Combine all topics, prioritizing unique meaningful ones
+    const allTopics = [...new Set([...mainTopics, ...segmentTopics])];
+    
+    // Only proceed if we have meaningful topics
+    if (allTopics.length === 0) {
+      return []; // Return empty array if no quality topics found
+    }
     
     // Generate queries from topics with varied formats
-    meaningfulTopics.slice(0, 3).forEach((topic, idx) => {
+    allTopics.slice(0, 4).forEach((topic, idx) => {
       if (idx === 0) {
         // First topic: "What is X?"
         addQuery(`What is ${topic}?`);
       } else if (idx === 1) {
         // Second topic: "X explained"
         addQuery(`${topic} explained`);
-      } else {
-        // Third topic: "X examples" or "Understanding X"
+      } else if (idx === 2) {
+        // Third topic: "X examples"
         addQuery(`${topic} examples`);
+      } else {
+        // Fourth topic: just the topic itself
+        addQuery(topic);
       }
     });
     
-    // Add learning goal if it's specific enough
-    if (digest.learning_goal && digest.learning_goal.length > 10) {
+    // Add learning goal if it's specific and meaningful
+    if (digest.learning_goal && digest.learning_goal.length > 15) {
       const goal = digest.learning_goal;
-      // Only add if not too generic
-      if (!goal.toLowerCase().match(/learn|understand|study/i)) {
-        addQuery(goal);
-      } else {
-        // Extract the key concept from learning goal
-        const match = goal.match(/(?:learn|understand|study)\s+(?:about\s+)?(.+?)(?:\s+in|\s+for|\s+with|$)/i);
-        if (match && match[1]) {
-          addQuery(`${match[1]} overview`);
+      const lower = goal.toLowerCase();
+      
+      // Try to extract the key concept from patterns like "learn about X"
+      const extractPattern = /(?:learn|understand|study|explore)\s+(?:about\s+)?(.+?)(?:\s+in|\s+for|\s+with|\s+through|$)/i;
+      const match = goal.match(extractPattern);
+      
+      if (match && match[1]) {
+        const extracted = cleanTopic(match[1]);
+        if (isMeaningfulTopic(extracted)) {
+          addQuery(`${extracted} overview`);
+        }
+      } else if (!lower.match(/^(learn|understand|study|explore)/i)) {
+        // If it doesn't start with generic verbs, use as-is
+        const cleaned = cleanTopic(goal);
+        if (isMeaningfulTopic(cleaned)) {
+          addQuery(cleaned);
         }
       }
     }
     
-    // Add title-based query if title is meaningful
-    if (digest.title && digest.title.length > 5) {
-      const title = digest.title;
-      // Skip if title contains generic words like "digest"
-      if (!title.toLowerCase().match(/digest|summary|notes/i)) {
-        addQuery(title);
+    // Add title-based query only if it's specific and meaningful
+    if (digest.title && digest.title.length > 10) {
+      const cleaned = cleanTopic(digest.title);
+      if (isMeaningfulTopic(cleaned) && cleaned.length >= 10) {
+        addQuery(cleaned);
       }
     }
     
-    // If we don't have enough queries yet, add "vs" comparison queries
-    if (queries.length < 5 && meaningfulTopics.length >= 2) {
-      addQuery(`${meaningfulTopics[0]} vs ${meaningfulTopics[1]}`);
+    // Add comparison query if we have at least 2 good topics and need more queries
+    if (queries.length < 5 && allTopics.length >= 2) {
+      addQuery(`${allTopics[0]} vs ${allTopics[1]}`);
     }
     
-    // If still need more, add "How to use X" for first topic
-    if (queries.length < 5 && meaningfulTopics.length > 0) {
-      addQuery(`How to use ${meaningfulTopics[0]}`);
+    // Add "How to" query if we need more and have topics available
+    if (queries.length < 5 && allTopics.length > 0) {
+      addQuery(`How to use ${allTopics[0]}`);
     }
     
-    // Return 5-6 queries max
+    // Return up to 6 queries, or empty array if none meet quality threshold
     return queries.slice(0, 6);
   };
 
