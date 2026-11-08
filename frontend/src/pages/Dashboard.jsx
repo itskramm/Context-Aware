@@ -26,6 +26,33 @@ import { toast } from "@/components/ui/use-toast";
 
 import ActivityAnalytics from "@/components/dashboard/ActivityAnalytics";
 
+// Calculate digest duration from chapters or estimate from lecture
+function calculateDigestDuration(digest, lecture) {
+  if (digest?.duration) return digest.duration;
+  
+  const chapters = digest?.content?.chapters || [];
+  if (chapters.length >= 2) {
+    const parseTimestamp = (ts) => {
+      if (!ts) return 0;
+      const parts = String(ts).split(":").map(Number);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return 0;
+    };
+    const firstTs = parseTimestamp(chapters[0]?.timestamp || chapters[0]?.startTime || chapters[0]?.start_time);
+    const lastTs = parseTimestamp(chapters[chapters.length - 1]?.timestamp || chapters[chapters.length - 1]?.startTime || chapters[chapters.length - 1]?.start_time);
+    if (lastTs > firstTs) {
+      return (lastTs - firstTs) + 300;
+    }
+  }
+  
+  if (lecture?.duration) {
+    return Math.round(lecture.duration * 0.3);
+  }
+  
+  return 0;
+}
+
 function StatCard({ icon: Icon, label, value, sub }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -79,6 +106,37 @@ function LectureCard({ lecture }) {
 }
 
 function DigestCard({ digest, lecture }) {
+  // Calculate digest duration if not available
+  const getDigestDuration = () => {
+    if (digest.duration) return digest.duration;
+    
+    // Calculate from chapters if available
+    const chapters = digest.content?.chapters || [];
+    if (chapters.length >= 2) {
+      const parseTimestamp = (ts) => {
+        if (!ts) return 0;
+        const parts = String(ts).split(":").map(Number);
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        return 0;
+      };
+      const firstTs = parseTimestamp(chapters[0]?.timestamp || chapters[0]?.startTime || chapters[0]?.start_time);
+      const lastTs = parseTimestamp(chapters[chapters.length - 1]?.timestamp || chapters[chapters.length - 1]?.startTime || chapters[chapters.length - 1]?.start_time);
+      if (lastTs > firstTs) {
+        return (lastTs - firstTs) + 300; // Add 5 minutes for last chapter
+      }
+    }
+    
+    // Fallback: use 30% of lecture duration as estimate
+    if (lecture?.duration) {
+      return Math.round(lecture.duration * 0.3);
+    }
+    
+    return 0;
+  };
+
+  const digestDuration = getDigestDuration();
+  
   return (
     <Link
       to={`/digests/${digest.id}`}
@@ -98,7 +156,7 @@ function DigestCard({ digest, lecture }) {
           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {digest.duration_label || compactDuration(digest.duration)}
+              {digest.duration_label || compactDuration(digestDuration)}
             </span>
             <span>{relativeDate(digest.created_date)}</span>
           </div>
@@ -200,7 +258,7 @@ export default function Dashboard() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-foreground truncate">{continueItem.title}</p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {lectureMap[continueItem.lecture_id]?.title || "Lecture"} · {continueItem.duration_label || compactDuration(continueItem.duration)}
+                    {lectureMap[continueItem.lecture_id]?.title || "Lecture"} · {continueItem.duration_label || compactDuration(calculateDigestDuration(continueItem, lectureMap[continueItem.lecture_id]))}
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />

@@ -33,6 +33,58 @@ import SegmentCard from "@/components/digest/SegmentCard";
 import TranscriptRow from "@/components/TranscriptRow";
 import { toast } from "@/components/ui/use-toast";
 
+// Generate Google-style search queries based on digest topics
+function generateSearchQueries(digest) {
+  const queries = [];
+  const topics = digest?.content?.topics || digest?.topics || [];
+  const learningGoal = digest?.learning_goal || '';
+  const title = digest?.title || '';
+  
+  // Extract key terms from topics
+  const mainTopics = topics.slice(0, 3).map(t => 
+    typeof t === 'string' ? t : t.name || t.title || ''
+  ).filter(Boolean);
+  
+  // Extract main subject from title or learning goal
+  const mainSubject = title.split(/[:\-–—]/)[0].trim() || learningGoal.split(/\s+/).slice(0, 3).join(' ');
+  
+  // Common question patterns
+  const patterns = [
+    (topic) => `what is ${topic.toLowerCase()}?`,
+    (topic) => `${topic.toLowerCase()} explained`,
+    (topic) => `how to understand ${topic.toLowerCase()}`,
+    (topic) => `${topic.toLowerCase()} examples`,
+    (topic) => `best resources for ${topic.toLowerCase()}`,
+  ];
+  
+  // Generate queries from main topics
+  mainTopics.forEach((topic, idx) => {
+    if (idx < patterns.length) {
+      queries.push(patterns[idx](topic));
+    }
+  });
+  
+  // Add subject-level queries if we have a main subject
+  if (mainSubject && queries.length < 5) {
+    queries.push(`${mainSubject.toLowerCase()} tutorial`);
+  }
+  if (learningGoal && queries.length < 6) {
+    queries.push(`how to ${learningGoal.toLowerCase()}`);
+  }
+  
+  // Add comparative query if we have multiple topics
+  if (mainTopics.length >= 2 && queries.length < 7) {
+    queries.push(`${mainTopics[0].toLowerCase()} vs ${mainTopics[1].toLowerCase()}`);
+  }
+  
+  // Fallback queries
+  if (queries.length === 0) {
+    queries.push('explore this topic', 'learn more about this subject');
+  }
+  
+  return queries.slice(0, 6); // Return max 6 queries
+}
+
 export default function DigestResults() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -148,6 +200,29 @@ export default function DigestResults() {
   (digest?.learning_goal || "").toLowerCase().split(/\W+/).forEach((w) => { if (w.length > 4) terms.add(w); });
   const highlightTerms = [...terms];
 
+  // Calculate digest duration if not available
+  const getDigestDuration = () => {
+    if (digest?.duration) return digest.duration;
+    
+    // Calculate from segments (which we already parsed from chapters)
+    if (segments.length >= 2) {
+      const firstStart = segments[0].start_time;
+      const lastEnd = segments[segments.length - 1].end_time;
+      if (lastEnd > firstStart) {
+        return lastEnd - firstStart;
+      }
+    }
+    
+    // Fallback: use 30% of lecture duration as estimate
+    if (lecture?.duration) {
+      return Math.round(lecture.duration * 0.3);
+    }
+    
+    return 0;
+  };
+
+  const digestDuration = getDigestDuration();
+
   if (loading) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -201,9 +276,9 @@ export default function DigestResults() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <MetaCard icon={BookOpen} label="Lecture" value={lecture?.title || "—"} />
         <MetaCard icon={Target} label="Learning goal" value={digest.learning_goal || "—"} />
-        <MetaCard icon={Clock} label="Digest duration" value={digest.duration_label || compactDuration(digest.duration)} />
-        <MetaCard icon={Clock} label="Lecture length" value={digest.lecture_duration_label || formatDuration(digest.lecture_duration)} />
-        <MetaCard icon={Sparkles} label="Time saved" value={digest.estimated_time_saved_label || compactDuration(digest.estimated_time_saved)} />
+        <MetaCard icon={Clock} label="Digest duration" value={digest.duration_label || compactDuration(digestDuration)} />
+        <MetaCard icon={Clock} label="Lecture length" value={digest.lecture_duration_label || formatDuration(lecture?.duration)} />
+        <MetaCard icon={Sparkles} label="Time saved" value={digest.estimated_time_saved_label || compactDuration(Math.max(0, (lecture?.duration || 0) - digestDuration))} />
         <MetaCard icon={Calendar} label="Created" value={relativeDate(digest.created_date || digest.createdAt)} />
       </div>
 
@@ -291,19 +366,23 @@ export default function DigestResults() {
           </div>
         </div>
 
-        {/* Right: segments + explanation */}
+        {/* Right: search queries + explanation */}
         <div className="space-y-4">
-          {/* Relevant segments */}
+          {/* Topic-based search queries */}
           <div className="rounded-2xl border border-border bg-card p-4">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Relevant Segments</h3>
-            <div className="space-y-2.5">
-              {segments.map((s) => (
-                <SegmentCard
-                  key={s.id}
-                  segment={s}
-                  active={activeSegment === s.id}
-                  onSeek={() => seekTo(s.start_time, s.id)}
-                />
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Search className="w-4 h-4" /> Explore Topics
+            </h3>
+            <div className="space-y-2">
+              {generateSearchQueries(digest).map((query, i) => (
+                <button
+                  key={i}
+                  onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank')}
+                  className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
+                >
+                  <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                  <span className="flex-1">{query}</span>
+                </button>
               ))}
             </div>
           </div>
