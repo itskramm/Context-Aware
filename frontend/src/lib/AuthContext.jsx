@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react"
 import { APP_PARAMS } from "./app-params"
+import { base44 } from "@/api/base44Client"
 
 const AuthContext = createContext(null)
 
@@ -88,6 +89,19 @@ export function AuthProvider({ children }) {
     localStorage.setItem(APP_PARAMS.USER_KEY || 'user', JSON.stringify(userData))
   }
 
+  const refreshUser = async () => {
+    try {
+      const response = await base44.auth.me()
+      if (response) {
+        setUser(response)
+        localStorage.setItem(APP_PARAMS.USER_KEY || 'user', JSON.stringify(response))
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error)
+      throw error
+    }
+  }
+
   const isAuthenticated = !!token && !!user
 
   const hasRole = (role) => {
@@ -109,6 +123,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     updateUser,
+    refreshUser,
     updateLastActivity,
     hasRole,
     isAdmin,

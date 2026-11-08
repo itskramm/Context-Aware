@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { User, Mail, Calendar, Shield, Loader2, Save, Library, Clapperboard, Eye, Camera, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/config/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
@@ -66,7 +67,6 @@ export default function Profile() {
 
     setUploadingPhoto(true);
     try {
-      const storage = getStorage();
       const fileName = `profile-photos/${user.id}-${Date.now()}.${file.name.split('.').pop()}`;
       const fileRef = storageRef(storage, fileName);
       
