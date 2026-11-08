@@ -184,36 +184,84 @@ export default function DigestResults() {
   // Generate related search queries from digest content (fallback for old digests)
   const generateRelatedQueries = (digest, segments) => {
     const queries = [];
+    const seen = new Set(); // Track unique topics to avoid duplicates
     
-    // From main topics
-    const topics = digest.content?.topics || digest.topics || [];
-    topics.slice(0, 3).forEach(topic => {
-      const topicName = typeof topic === "string" ? topic : topic.name || topic.title;
-      if (topicName) {
-        queries.push(`${topicName} explained`);
-        queries.push(`What is ${topicName}?`);
+    // Helper to add query if unique and meaningful
+    const addQuery = (query) => {
+      if (!query || query.length < 5) return; // Skip empty or too short
+      const normalized = query.toLowerCase().trim();
+      if (seen.has(normalized)) return;
+      seen.add(normalized);
+      queries.push(query);
+    };
+    
+    // Extract topics from multiple sources
+    const topicsArray = digest.content?.topics || digest.topics || [];
+    const mainTopics = topicsArray.slice(0, 3).map(t => 
+      typeof t === "string" ? t : (t.name || t.title || "")
+    ).filter(Boolean);
+    
+    // Extract segment topics (chapter/section names)
+    const segmentTopics = segments.slice(0, 3).map(s => s.topic).filter(Boolean);
+    
+    // Combine all topics and remove generic words
+    const allTopics = [...mainTopics, ...segmentTopics];
+    const meaningfulTopics = allTopics.filter(topic => {
+      const lower = topic.toLowerCase();
+      // Filter out generic words like "introduction", "overview", "section 1", etc.
+      return !lower.match(/^(introduction|overview|section \d+|chapter \d+|part \d+)$/i);
+    });
+    
+    // Generate queries from topics with varied formats
+    meaningfulTopics.slice(0, 3).forEach((topic, idx) => {
+      if (idx === 0) {
+        // First topic: "What is X?"
+        addQuery(`What is ${topic}?`);
+      } else if (idx === 1) {
+        // Second topic: "X explained"
+        addQuery(`${topic} explained`);
+      } else {
+        // Third topic: "X examples" or "Understanding X"
+        addQuery(`${topic} examples`);
       }
     });
     
-    // From learning goal
-    if (digest.learning_goal) {
-      queries.push(digest.learning_goal);
-    }
-    
-    // From segment topics (chapters/sections)
-    segments.slice(0, 2).forEach(seg => {
-      if (seg.topic) {
-        queries.push(`${seg.topic} guide`);
+    // Add learning goal if it's specific enough
+    if (digest.learning_goal && digest.learning_goal.length > 10) {
+      const goal = digest.learning_goal;
+      // Only add if not too generic
+      if (!goal.toLowerCase().match(/learn|understand|study/i)) {
+        addQuery(goal);
+      } else {
+        // Extract the key concept from learning goal
+        const match = goal.match(/(?:learn|understand|study)\s+(?:about\s+)?(.+?)(?:\s+in|\s+for|\s+with|$)/i);
+        if (match && match[1]) {
+          addQuery(`${match[1]} overview`);
+        }
       }
-    });
-    
-    // From title
-    if (digest.title) {
-      queries.push(digest.title);
     }
     
-    // Remove duplicates and limit to 5-7 queries
-    return [...new Set(queries)].slice(0, 6);
+    // Add title-based query if title is meaningful
+    if (digest.title && digest.title.length > 5) {
+      const title = digest.title;
+      // Skip if title contains generic words like "digest"
+      if (!title.toLowerCase().match(/digest|summary|notes/i)) {
+        addQuery(title);
+      }
+    }
+    
+    // If we don't have enough queries yet, add "vs" comparison queries
+    if (queries.length < 5 && meaningfulTopics.length >= 2) {
+      addQuery(`${meaningfulTopics[0]} vs ${meaningfulTopics[1]}`);
+    }
+    
+    // If still need more, add "How to use X" for first topic
+    if (queries.length < 5 && meaningfulTopics.length > 0) {
+      addQuery(`How to use ${meaningfulTopics[0]}`);
+    }
+    
+    // Return 5-6 queries max
+    return queries.slice(0, 6);
   };
 
   if (loading) {
