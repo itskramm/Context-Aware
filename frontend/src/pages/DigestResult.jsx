@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Loader2,
   Clock,
@@ -45,6 +52,8 @@ export default function DigestResults() {
   const [activeSegment, setActiveSegment] = useState(null);
   const [search, setSearch] = useState("");
   const [relatedQueries, setRelatedQueries] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedQuery, setSelectedQuery] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -180,6 +189,52 @@ export default function DigestResults() {
   };
 
   const digestDuration = getDigestDuration();
+
+  // Extract relevant content for a query
+  const getRelevantContent = (query) => {
+    if (!query) return { takeaways: [], segments: [], transcripts: [] };
+    
+    // Extract key terms from query (remove common words)
+    const stopWords = new Set(['what', 'is', 'the', 'a', 'an', 'how', 'to', 'explained', 'examples', 'overview', 'vs', 'use']);
+    const queryTerms = query.toLowerCase()
+      .replace(/[?.,!]/g, '')
+      .split(/\s+/)
+      .filter(term => term.length > 2 && !stopWords.has(term));
+    
+    // Helper to check if text contains any query terms
+    const containsTerms = (text) => {
+      if (!text) return false;
+      const lowerText = text.toLowerCase();
+      return queryTerms.some(term => lowerText.includes(term));
+    };
+    
+    // Find relevant takeaways
+    const relevantTakeaways = (digest.content?.keyPoints || digest.key_takeaways || [])
+      .filter(takeaway => containsTerms(takeaway));
+    
+    // Find relevant segments
+    const relevantSegments = segments.filter(seg => 
+      containsTerms(seg.topic) || containsTerms(seg.explanation)
+    );
+    
+    // Find relevant transcript excerpts (limit to 5 most relevant)
+    const relevantTranscripts = transcripts
+      .filter(t => containsTerms(t.text))
+      .slice(0, 5);
+    
+    return {
+      takeaways: relevantTakeaways,
+      segments: relevantSegments,
+      transcripts: relevantTranscripts,
+      queryTerms,
+    };
+  };
+
+  // Handle query card click
+  const handleQueryClick = (query) => {
+    setSelectedQuery(query);
+    setModalOpen(true);
+  };
 
   // Generate related search queries from digest content (fallback for old digests)
   const generateRelatedQueries = (digest, segments) => {
@@ -418,7 +473,7 @@ export default function DigestResults() {
                 relatedQueries.map((query, i) => (
                   <button
                     key={i}
-                    onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank')}
+                    onClick={() => handleQueryClick(query)}
                     className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
                   >
                     <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
@@ -449,6 +504,131 @@ export default function DigestResults() {
       </div>
 
       <DigestChat digest={digest} />
+
+      {/* Query Details Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold pr-8">{selectedQuery}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Relevant information from the digest about this topic
+            </DialogDescription>
+          </DialogHeader>
+
+          {(() => {
+            const relevantContent = getRelevantContent(selectedQuery);
+            const hasContent = 
+              relevantContent.takeaways.length > 0 || 
+              relevantContent.segments.length > 0 || 
+              relevantContent.transcripts.length > 0;
+
+            if (!hasContent) {
+              return (
+                <div className="py-8 text-center">
+                  <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-sm text-muted-foreground">
+                    No specific content found in the digest for this topic.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This query was generated based on the digest's main themes.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-6 pt-2">
+                {/* Relevant Segments */}
+                {relevantContent.segments.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> Related Segments ({relevantContent.segments.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {relevantContent.segments.map((seg) => (
+                        <div 
+                          key={seg.id}
+                          className="rounded-lg border border-border bg-card p-3 hover:border-primary/40 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-1">
+                            <h5 className="font-medium text-sm text-foreground">{seg.topic}</h5>
+                            <button
+                              onClick={() => {
+                                seekTo(seg.start_time, seg.id);
+                                setModalOpen(false);
+                              }}
+                              className="shrink-0 text-xs text-primary hover:underline flex items-center gap-1"
+                            >
+                              <Clock className="w-3 h-3" />
+                              {seg.start_label}
+                            </button>
+                          </div>
+                          {seg.explanation && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              <Highlight text={seg.explanation} terms={relevantContent.queryTerms} />
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Relevant Takeaways */}
+                {relevantContent.takeaways.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <Lightbulb className="w-4 h-4" /> Related Takeaways ({relevantContent.takeaways.length})
+                    </h4>
+                    <ul className="space-y-2.5">
+                      {relevantContent.takeaways.map((takeaway, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm">
+                          <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                          <span className="text-foreground leading-relaxed">
+                            <Highlight text={takeaway} terms={relevantContent.queryTerms} />
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Relevant Transcript Excerpts */}
+                {relevantContent.transcripts.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4" /> Relevant Transcript Excerpts ({relevantContent.transcripts.length})
+                    </h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {relevantContent.transcripts.map((t, i) => (
+                        <div 
+                          key={t.id || i}
+                          className="rounded-lg border border-border bg-card p-3 hover:border-primary/40 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <button
+                              onClick={() => {
+                                seekTo(t.timestamp, null);
+                                setModalOpen(false);
+                              }}
+                              className="text-xs font-mono text-primary hover:underline"
+                            >
+                              {t.timestamp_label || fmtTime(t.timestamp)}
+                            </button>
+                          </div>
+                          <p className="text-xs text-foreground leading-relaxed">
+                            <Highlight text={t.text || ""} terms={relevantContent.queryTerms} />
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
