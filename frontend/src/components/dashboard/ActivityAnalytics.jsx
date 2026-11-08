@@ -171,15 +171,15 @@ export default function ActivityAnalytics() {
         </TabsList>
 
         <TabsContent value="day" className="mt-0">
-          {renderStatsCards(dayTotals, { lectures: 'Lectures (14 days)', digests: 'Digests (14 days)' })}
+          {renderStatsCards(dayTotals, { lectures: 'Lectures', digests: 'Digests' })}
         </TabsContent>
 
         <TabsContent value="week" className="mt-0">
-          {renderStatsCards(weekTotals, { lectures: 'Lectures (8 weeks)', digests: 'Digests (8 weeks)' })}
+          {renderStatsCards(weekTotals, { lectures: 'Lectures', digests: 'Digests' })}
         </TabsContent>
 
         <TabsContent value="month" className="mt-0">
-          {renderStatsCards(monthTotals, { lectures: 'Lectures (6 months)', digests: 'Digests (6 months)' })}
+          {renderStatsCards(monthTotals, { lectures: 'Lectures', digests: 'Digests' })}
         </TabsContent>
       </Tabs>
     </div>
