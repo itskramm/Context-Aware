@@ -196,6 +196,15 @@ export async function seedDemoData() {
         "2NF removes partial dependencies on a composite key.",
         "3NF removes transitive dependencies between non-key attributes.",
       ],
+      related_queries: [
+        "what is normalization?",
+        "1NF explained",
+        "how to understand 2NF",
+        "3NF examples",
+        "database normalization tutorial",
+        "normalization vs denormalization",
+        "best resources for database normalization"
+      ],
       relevance_explanation: "These sections were selected because they closely match your learning goal: reviewing database normalization for your exam.",
       is_demo: true,
     });
