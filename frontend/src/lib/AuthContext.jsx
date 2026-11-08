@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client"
 
 const AuthContext = createContext(null)
 
-const SESSION_TIMEOUT_MS = 60000 // 1 minute
+const SESSION_TIMEOUT_MS = 600000 // 10 minutes
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
       const now = Date.now()
       const timeSinceActivity = now - lastActivityTime
 
-      // Check if session expired (more than 1 minute since last activity)
+      // Check if session expired (more than 10 minutes since last activity)
       if (timeSinceActivity > SESSION_TIMEOUT_MS) {
         // Session expired, clear everything
         localStorage.removeItem(APP_PARAMS.TOKEN_KEY || 'auth_token')
