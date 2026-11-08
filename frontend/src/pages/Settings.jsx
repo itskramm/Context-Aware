@@ -1,71 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, Palette, Sliders, Shield, Trash2, Loader2, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sun, Moon, Monitor, Palette, Shield, Trash2, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { toast } from '@/components/ui/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import PasswordInput from '@/components/PasswordInput';
-import PasswordStrength from '@/components/PasswordStrength';
-import { validatePassword } from '@/lib/authValidations';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   
-  // Preferences state
-  const [digestDepth, setDigestDepth] = useState('standard');
-  const [playbackSpeed, setPlaybackSpeed] = useState('1x');
-  const [notifications, setNotifications] = useState(true);
-  
-  // Password change state
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
-  
   // Delete loading states
   const [deletingLectures, setDeletingLectures] = useState(false);
   const [deletingDigests, setDeletingDigests] = useState(false);
-
-  // Load preferences from localStorage on mount
-  useEffect(() => {
-    const prefs = localStorage.getItem('userPreferences');
-    if (prefs) {
-      try {
-        const parsed = JSON.parse(prefs);
-        setDigestDepth(parsed.digestDepth || 'standard');
-        setPlaybackSpeed(parsed.playbackSpeed || '1x');
-        setNotifications(parsed.notifications !== false);
-      } catch {}
-    }
-  }, []);
-
-  // Save preferences to localStorage whenever they change
-  const savePreference = (key, value) => {
-    const prefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-    prefs[key] = value;
-    localStorage.setItem('userPreferences', JSON.stringify(prefs));
-    toast({ title: 'Preference saved', description: 'Your settings have been updated.' });
-  };
-
-  const handleDigestDepthChange = (value) => {
-    setDigestDepth(value);
-    savePreference('digestDepth', value);
-  };
-
-  const handlePlaybackSpeedChange = (value) => {
-    setPlaybackSpeed(value);
-    savePreference('playbackSpeed', value);
-  };
-
-  const handleNotificationsToggle = () => {
-    const newValue = !notifications;
-    setNotifications(newValue);
-    savePreference('notifications', newValue);
-  };
 
   const handleDeleteLectures = async () => {
     if (!window.confirm('Delete all your lectures? This will remove all uploaded lectures and their transcripts. This cannot be undone.')) {
@@ -112,50 +58,6 @@ export default function Settings() {
       toast({ title: 'Failed to delete digests', description: err?.message, variant: 'destructive' });
     } finally {
       setDeletingDigests(false);
-    }
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setPasswordError('');
-
-    // Validate inputs
-    if (!currentPassword) {
-      setPasswordError('Current password is required');
-      return;
-    }
-
-    const passwordValidation = validatePassword(newPassword);
-    if (passwordValidation) {
-      setPasswordError(passwordValidation);
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError('New passwords do not match');
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      setPasswordError('New password must be different from current password');
-      return;
-    }
-
-    setChangingPassword(true);
-    try {
-      await base44.auth.changePassword(currentPassword, newPassword);
-      toast({ 
-        title: 'Password changed', 
-        description: 'Your password has been updated successfully.' 
-      });
-      // Clear form
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-    } catch (err) {
-      setPasswordError(err?.message || 'Failed to change password');
-    } finally {
-      setChangingPassword(false);
     }
   };
 
@@ -213,66 +115,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Preferences */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Sliders className="w-5 h-5 text-muted-foreground" />
-            <h3 className="font-semibold">PREFERENCES</h3>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Default digest depth</label>
-              <Select value={digestDepth} onValueChange={handleDigestDepthChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="quick">Quick — Brief overview, key points only</SelectItem>
-                  <SelectItem value="standard">Standard — Balanced detail and brevity</SelectItem>
-                  <SelectItem value="detailed">Detailed — In-depth coverage with examples</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Default playback speed</label>
-              <Select value={playbackSpeed} onValueChange={handlePlaybackSpeedChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0.5x">0.5x — Slower</SelectItem>
-                  <SelectItem value="0.75x">0.75x — Slow</SelectItem>
-                  <SelectItem value="1x">1x — Normal</SelectItem>
-                  <SelectItem value="1.25x">1.25x — Slightly faster</SelectItem>
-                  <SelectItem value="1.5x">1.5x — Fast</SelectItem>
-                  <SelectItem value="2x">2x — Very fast</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium">Notification preferences</p>
-                <p className="text-xs text-muted-foreground">Get notified when processing completes.</p>
-              </div>
-              <button
-                onClick={handleNotificationsToggle}
-                role="switch"
-                aria-checked={notifications}
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  notifications ? 'bg-primary' : 'bg-muted'
-                }`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  notifications ? 'translate-x-5' : ''
-                }`} />
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Privacy */}
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -309,78 +151,6 @@ export default function Settings() {
               Delete account (contact support)
             </button>
           </div>
-        </div>
-
-        {/* Change Password */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Lock className="w-5 h-5 text-muted-foreground" />
-            <h3 className="font-semibold">CHANGE PASSWORD</h3>
-          </div>
-
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            {passwordError && (
-              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                {passwordError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Current Password</label>
-              <PasswordInput
-                value={currentPassword}
-                onChange={setCurrentPassword}
-                placeholder="Enter current password"
-                autoComplete="current-password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">New Password</label>
-              <PasswordInput
-                value={newPassword}
-                onChange={setNewPassword}
-                placeholder="Enter new password"
-                autoComplete="new-password"
-              />
-              <PasswordStrength password={newPassword} />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Confirm New Password</label>
-              <PasswordInput
-                value={confirmNewPassword}
-                onChange={setConfirmNewPassword}
-                placeholder="Confirm new password"
-                autoComplete="new-password"
-                onPaste={(e) => {
-                  e.preventDefault();
-                  toast({
-                    title: 'Paste disabled',
-                    description: 'Please type your password again manually.',
-                  });
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                Copy/paste is disabled — please type the password again.
-              </p>
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={changingPassword}
-              className="w-full sm:w-auto"
-            >
-              {changingPassword ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Changing password...
-                </>
-              ) : (
-                'Change password'
-              )}
-            </Button>
-          </form>
         </div>
       </div>
     </div>

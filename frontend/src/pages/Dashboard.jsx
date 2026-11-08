@@ -23,7 +23,7 @@ import {
   relativeDate,
 } from "@/lib/lectureUtils";
 import { toast } from "@/components/ui/use-toast";
-import LectureContentWarning from "@/components/LectureContentWarning";
+
 import ActivityAnalytics from "@/components/dashboard/ActivityAnalytics";
 
 function StatCard({ icon: Icon, label, value, sub }) {
@@ -214,7 +214,6 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Recent Lectures</h2>
               <Link to="/lectures" className="text-sm text-primary hover:underline">View all</Link>
             </div>
-            <LectureContentWarning className="mb-4" />
             {recentLectures.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border p-10 text-center">
                 <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />

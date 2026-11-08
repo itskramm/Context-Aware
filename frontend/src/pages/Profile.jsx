@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { User, Mail, Calendar, Shield, Key, Loader2, Save, Library, Clapperboard, Eye, Camera, Upload } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Loader2, Save, Library, Clapperboard, Eye, Camera, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -19,13 +19,6 @@ export default function Profile() {
   const [email, setEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-
-  // Password change state
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({ lectures: 0, digests: 0, views: 0 });
@@ -109,38 +102,6 @@ export default function Profile() {
       toast({ title: 'Failed to update profile', description: err?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!currentPassword) {
-      toast({ title: 'Current password required', variant: 'destructive' });
-      return;
-    }
-    if (newPassword.length < 8) {
-      toast({ title: 'Password too short', description: 'New password must be at least 8 characters.', variant: 'destructive' });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast({ title: 'Passwords do not match', variant: 'destructive' });
-      return;
-    }
-
-    setSavingPassword(true);
-    try {
-      await base44.post('/auth/change-password', {
-        currentPassword,
-        newPassword,
-      });
-      setChangingPassword(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      toast({ title: 'Password changed', description: 'Your password has been updated successfully.' });
-    } catch (err) {
-      toast({ title: 'Failed to change password', description: err?.message || 'Check your current password.', variant: 'destructive' });
-    } finally {
-      setSavingPassword(false);
     }
   };
 
@@ -314,74 +275,6 @@ export default function Profile() {
                 <p className="text-xs text-muted-foreground mt-1">Total view{stats.views !== 1 ? 's' : ''}</p>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Password Change */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Key className="w-5 h-5 text-muted-foreground" />
-              CHANGE PASSWORD
-            </h3>
-            {!changingPassword && (
-              <Button variant="outline" size="sm" onClick={() => setChangingPassword(true)}>
-                Change
-              </Button>
-            )}
-          </div>
-
-          {changingPassword ? (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Current Password</label>
-                <Input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">New Password</label>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 8 characters)"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Confirm New Password</label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleChangePassword} disabled={savingPassword}>
-                  {savingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-                  Update Password
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setChangingPassword(false);
-                    setCurrentPassword('');
-                    setNewPassword('');
-                    setConfirmPassword('');
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Keep your account secure by using a strong password. Click "Change" to update your password.
-            </p>
           )}
         </div>
       </div>
