@@ -91,9 +91,9 @@ router.get('/dashboard', async (req, res) => {
     const completedLectures = lectures.filter(l => l.processing_status === 'ready' || l.status === 'completed').length;
     const completionRate = totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
 
-    // --- Daily activity for chart (last 7 days) ---
+    // --- Daily activity for chart (last 180 days for week/month views) ---
     const dailyActivity = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 179; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
