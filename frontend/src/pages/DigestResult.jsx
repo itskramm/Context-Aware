@@ -572,7 +572,9 @@ export default function DigestResults() {
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No related queries available.</p>
+                <p className="text-sm text-muted-foreground">
+                  No specific topics detected in this digest to explore further.
+                </p>
               )}
             </div>
           </div>
