@@ -44,6 +44,7 @@ export default function DigestResults() {
   const [loading, setLoading] = useState(true);
   const [activeSegment, setActiveSegment] = useState(null);
   const [search, setSearch] = useState("");
+  const [relatedQueries, setRelatedQueries] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +101,15 @@ export default function DigestResults() {
       setLecture(lec);
       setSegments(mappedSegs);
       setTranscripts(trans || []);
+      
+      // Generate related queries if not in digest (fallback for old digests)
+      if (!dig.related_queries || dig.related_queries.length === 0) {
+        const generatedQueries = generateRelatedQueries(dig, mappedSegs);
+        setRelatedQueries(generatedQueries);
+      } else {
+        setRelatedQueries(dig.related_queries);
+      }
+      
       try {
         await base44.entities.UserInteraction.create({
           digest_id: id,
@@ -170,6 +180,41 @@ export default function DigestResults() {
   };
 
   const digestDuration = getDigestDuration();
+
+  // Generate related search queries from digest content (fallback for old digests)
+  const generateRelatedQueries = (digest, segments) => {
+    const queries = [];
+    
+    // From main topics
+    const topics = digest.content?.topics || digest.topics || [];
+    topics.slice(0, 3).forEach(topic => {
+      const topicName = typeof topic === "string" ? topic : topic.name || topic.title;
+      if (topicName) {
+        queries.push(`${topicName} explained`);
+        queries.push(`What is ${topicName}?`);
+      }
+    });
+    
+    // From learning goal
+    if (digest.learning_goal) {
+      queries.push(digest.learning_goal);
+    }
+    
+    // From segment topics (chapters/sections)
+    segments.slice(0, 2).forEach(seg => {
+      if (seg.topic) {
+        queries.push(`${seg.topic} guide`);
+      }
+    });
+    
+    // From title
+    if (digest.title) {
+      queries.push(digest.title);
+    }
+    
+    // Remove duplicates and limit to 5-7 queries
+    return [...new Set(queries)].slice(0, 6);
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -321,8 +366,8 @@ export default function DigestResults() {
               <Search className="w-4 h-4" /> Relevant Segments
             </h3>
             <div className="space-y-2">
-              {(digest.related_queries || []).length > 0 ? (
-                digest.related_queries.map((query, i) => (
+              {relatedQueries.length > 0 ? (
+                relatedQueries.map((query, i) => (
                   <button
                     key={i}
                     onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank')}
