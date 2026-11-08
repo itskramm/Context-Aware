@@ -106,8 +106,8 @@ function LectureCard({ lecture }) {
 }
 
 function DigestCard({ digest, lecture }) {
-  // Get thumbnail from lecture
-  const thumbnailUrl = lecture?.thumbnail_url || lecture?.thumbnailUrl;
+  // Get thumbnail from lecture - check multiple field name variations
+  const thumbnailUrl = lecture?.thumbnail_url || lecture?.thumbnailUrl || lecture?.file_url || lecture?.fileUrl;
   
   // Get description/summary from digest
   const getDescription = () => {
@@ -270,28 +270,32 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Continue learning */}
-          {continueItem && (
-            <div className="mb-10">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Continue Learning
-              </h2>
-              <Link
-                to={`/digests/${continueItem.id}`}
-                className="group flex items-center gap-4 rounded-2xl border border-border gradient-brand-soft p-5 hover:shadow-sm transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl gradient-brand text-white flex items-center justify-center shrink-0">
-                  <Play className="w-5 h-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-foreground truncate">{continueItem.title}</p>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {lectureMap[continueItem.lecture_id]?.title || "Lecture"} · {continueItem.duration_label || compactDuration(calculateDigestDuration(continueItem, lectureMap[continueItem.lecture_id]))}
-                  </p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-              </Link>
-            </div>
-          )}
+          {continueItem && (() => {
+            const lecId = continueItem.lecture_id || continueItem.lectureId;
+            const continueLecture = lectureMap[lecId];
+            return (
+              <div className="mb-10">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                  Continue Learning
+                </h2>
+                <Link
+                  to={`/digests/${continueItem.id}`}
+                  className="group flex items-center gap-4 rounded-2xl border border-border gradient-brand-soft p-5 hover:shadow-sm transition-all"
+                >
+                  <div className="w-12 h-12 rounded-xl gradient-brand text-white flex items-center justify-center shrink-0">
+                    <Play className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground truncate">{continueItem.title}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {continueLecture?.title || "Lecture"} · {continueItem.duration_label || compactDuration(calculateDigestDuration(continueItem, continueLecture))}
+                    </p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                </Link>
+              </div>
+            );
+          })()}
 
           {/* Recent lectures */}
           <div className="mb-10">
@@ -330,7 +334,10 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recentDigests.map((d) => <DigestCard key={d.id} digest={d} lecture={lectureMap[d.lecture_id]} />)}
+                {recentDigests.map((d) => {
+                  const lecId = d.lecture_id || d.lectureId;
+                  return <DigestCard key={d.id} digest={d} lecture={lectureMap[lecId]} />;
+                })}
               </div>
             )}
           </div>
