@@ -19,6 +19,7 @@ import interactionRoutes from './routes/interactions.js';
 import functionRoutes from './routes/functions.js';
 import analyticsRoutes from './routes/analytics.js';
 import chatRoutes from './routes/chat.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,6 +61,7 @@ app.use('/api/interactions', interactionRoutes);
 app.use('/api/functions', functionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use((req, res) => {
