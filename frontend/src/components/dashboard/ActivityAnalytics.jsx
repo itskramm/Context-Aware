@@ -91,6 +91,21 @@ export default function ActivityAnalytics() {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   };
 
+  // Format date labels for bar chart
+  const formatDateLabel = (dateStr, viewType) => {
+    const date = new Date(dateStr);
+    if (viewType === 'day') {
+      return `${date.getMonth() + 1}/${date.getDate()}`; // "1/15"
+    }
+    if (viewType === 'week') {
+      return `W${getWeekNumber(date)}`; // "W3"
+    }
+    if (viewType === 'month') {
+      return date.toLocaleDateString('en', { month: 'short' }); // "Jan"
+    }
+    return '';
+  };
+
 
 
   // Calculate activity streak from daily data
@@ -146,21 +161,21 @@ export default function ActivityAnalytics() {
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-xl bg-background/50 border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <Library className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 dark:bg-blue-400/20 flex items-center justify-center">
+                <Library className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <p className="text-xs text-muted-foreground font-medium">Lectures</p>
             </div>
-            <p className="text-3xl font-bold">{metrics.lectures}</p>
+            <p className="text-3xl font-bold text-foreground">{metrics.lectures}</p>
           </div>
           <div className="rounded-xl bg-background/50 border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 dark:bg-violet-400/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               </div>
               <p className="text-xs text-muted-foreground font-medium">Digests</p>
             </div>
-            <p className="text-3xl font-bold">{metrics.digests}</p>
+            <p className="text-3xl font-bold text-foreground">{metrics.digests}</p>
           </div>
         </div>
 
@@ -168,27 +183,72 @@ export default function ActivityAnalytics() {
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <FileText className="w-3.5 h-3.5 text-primary" />
+              <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Created</p>
             </div>
-            <p className="text-lg font-bold">{metrics.totalCreated}</p>
+            <p className="text-lg font-bold text-foreground">{metrics.totalCreated}</p>
           </div>
           
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <CheckCircle className="w-3.5 h-3.5 text-primary" />
+              <CheckCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
               <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Overall Completion</p>
             </div>
-            <p className="text-lg font-bold">{metrics.completionRate}%</p>
+            <p className="text-lg font-bold text-foreground">{metrics.completionRate}%</p>
           </div>
           
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Flame className="w-3.5 h-3.5 text-primary" />
+              <Flame className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
               <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Current Streak</p>
             </div>
-            <p className="text-lg font-bold">{metrics.streak} {metrics.streak === 1 ? 'day' : 'days'}</p>
+            <p className="text-lg font-bold text-foreground">{metrics.streak} {metrics.streak === 1 ? 'day' : 'days'}</p>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render bar chart visualization
+  const renderBarChart = (data, viewType) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="mt-6 rounded-lg border border-border bg-background/30 p-4">
+          <p className="text-sm text-muted-foreground text-center">No data available for this period</p>
+        </div>
+      );
+    }
+
+    const maxValue = Math.max(...data.map(d => d.lectures + d.digests), 1);
+
+    return (
+      <div className="mt-6 rounded-lg border border-border bg-background/30 p-4">
+        <div className="flex items-end justify-between gap-1 h-32">
+          {data.map((item, i) => {
+            const lectureHeight = (item.lectures / maxValue) * 100;
+            const digestHeight = (item.digests / maxValue) * 100;
+            const dateLabel = viewType === 'week' ? formatDateLabel(item.startDate || item.date, viewType) : formatDateLabel(item.date, viewType);
+            
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                <div className="w-full flex flex-col-reverse gap-0.5 h-24">
+                  {/* Digests bar (top) */}
+                  <div 
+                    className="w-full bg-violet-500/60 dark:bg-violet-400/50 rounded-t transition-all group-hover:bg-violet-500/80 dark:group-hover:bg-violet-400/70" 
+                    style={{ height: `${digestHeight}%` }}
+                    title={`${item.digests} digests`}
+                  />
+                  {/* Lectures bar (bottom) */}
+                  <div 
+                    className="w-full bg-blue-500/70 dark:bg-blue-400/60 rounded-b transition-all group-hover:bg-blue-500/90 dark:group-hover:bg-blue-400/80" 
+                    style={{ height: `${lectureHeight}%` }}
+                    title={`${item.lectures} lectures`}
+                  />
+                </div>
+                <span className="text-[9px] text-muted-foreground">{dateLabel}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -238,14 +298,17 @@ export default function ActivityAnalytics() {
 
         <TabsContent value="day" className="mt-0">
           {renderStatsCards(dayMetrics)}
+          {renderBarChart(recentDays, 'day')}
         </TabsContent>
 
         <TabsContent value="week" className="mt-0">
           {renderStatsCards(weekMetrics)}
+          {renderBarChart(weeklyData, 'week')}
         </TabsContent>
 
         <TabsContent value="month" className="mt-0">
           {renderStatsCards(monthMetrics)}
+          {renderBarChart(monthlyData, 'month')}
         </TabsContent>
       </Tabs>
     </div>
