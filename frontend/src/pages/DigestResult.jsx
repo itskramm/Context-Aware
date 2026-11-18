@@ -708,7 +708,9 @@ export default function DigestResults() {
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `${selectedQuery.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+              // Add timestamp to prevent filename collisions
+              const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+              a.download = `${selectedQuery.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${timestamp}.md`;
               a.click();
               URL.revokeObjectURL(url);
               toast({ title: "Notes downloaded" });
@@ -801,16 +803,23 @@ export default function DigestResults() {
                     )}
 
                     {/* Related Questions */}
-                    {relatedQueries.length > 1 && (
-                      <div className="rounded-lg border border-border bg-card p-4">
-                        <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                          <HelpCircle className="w-4 h-4" /> You might also want to know...
-                        </h4>
-                        <div className="space-y-2">
-                          {relatedQueries
-                            .filter(q => q !== selectedQuery)
-                            .slice(0, 3)
-                            .map((query, i) => (
+                    {(() => {
+                      // Filter out current query with case-insensitive comparison and deduplication
+                      const uniqueQuestions = relatedQueries
+                        .filter(q => q.toLowerCase().trim() !== selectedQuery?.toLowerCase().trim())
+                        .filter((q, idx, arr) => 
+                          // Keep only first occurrence of each normalized query
+                          arr.findIndex(other => other.toLowerCase().trim() === q.toLowerCase().trim()) === idx
+                        )
+                        .slice(0, 3);
+                      
+                      return uniqueQuestions.length > 0 ? (
+                        <div className="rounded-lg border border-border bg-card p-4">
+                          <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                            <HelpCircle className="w-4 h-4" /> You might also want to know...
+                          </h4>
+                          <div className="space-y-2">
+                            {uniqueQuestions.map((query, i) => (
                               <button
                                 key={i}
                                 onClick={() => setSelectedQuery(query)}
@@ -820,9 +829,10 @@ export default function DigestResults() {
                                 <span className="flex-1">{query}</span>
                               </button>
                             ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                   </TabsContent>
 
                   {/* Segments Tab */}
