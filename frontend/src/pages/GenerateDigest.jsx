@@ -43,6 +43,7 @@ export default function GenerateDigest() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const presetLecture = params.get("lecture");
+  const learningGoalRef = useRef(null);
 
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,10 @@ export default function GenerateDigest() {
       setLectures(res || []);
       if (presetLecture && res?.some((l) => l.id === presetLecture)) {
         setLectureId(presetLecture);
+        // Auto-focus on learning goal input after preset
+        setTimeout(() => {
+          learningGoalRef.current?.focus();
+        }, 100);
       }
     } catch (err) {
       toast({ title: "Could not load lectures", description: err?.message, variant: "destructive" });
@@ -107,6 +112,8 @@ export default function GenerateDigest() {
       if (result?.error) {
         setError(result.error);
         setGenerating(false);
+        clearInterval(stageTimer);
+        toast({ title: "Generation failed", description: result.error, variant: "destructive" });
         return;
       }
 
@@ -114,13 +121,20 @@ export default function GenerateDigest() {
       if (!digestId) {
         setError("Could not generate digest. Please try again.");
         setGenerating(false);
+        clearInterval(stageTimer);
+        toast({ title: "Generation failed", description: "Could not generate digest", variant: "destructive" });
         return;
       }
 
       toast({ title: "Digest ready", description: "Opening your personalized digest…" });
       setTimeout(() => navigate(`/digests/${digestId}`), 600);
     } catch (err) {
-      const msg = err?.response?.data?.error || err?.message || "We couldn't generate your digest. Please try again.";
+      const isNetworkError = err?.message?.toLowerCase().includes('network') || 
+                            err?.message?.toLowerCase().includes('fetch') ||
+                            !err?.response;
+      const msg = isNetworkError 
+        ? "Check your connection and try again" 
+        : (err?.response?.data?.error || err?.message || "We couldn't generate your digest. Please try again.");
       setError(msg);
       toast({ title: "Generation failed", description: msg, variant: "destructive" });
       setGenerating(false);
@@ -128,6 +142,8 @@ export default function GenerateDigest() {
   };
 
   if (generating) {
+    const progressPercent = Math.round(((genStage + 1) / GEN_STAGES.length) * 100);
+    
     return (
       <div className="p-6 sm:p-8 max-w-2xl mx-auto">
         <div className="rounded-2xl border border-border bg-card p-8 sm:p-10">
@@ -139,6 +155,9 @@ export default function GenerateDigest() {
             <p className="text-muted-foreground mt-1.5 text-sm">
               We're matching the lecture content to your learning goal.
             </p>
+            <div className="mt-4">
+              <div className="text-2xl font-bold text-primary">{progressPercent}%</div>
+            </div>
           </div>
           <div className="space-y-3">
             {GEN_STAGES.map((s, i) => {
@@ -178,6 +197,13 @@ export default function GenerateDigest() {
         <p className="text-muted-foreground">
           Tell us what you want to learn, and the system will identify the most relevant parts of the lecture.
         </p>
+        {presetLecture && lectureId && lectures.length > 0 && (
+          <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <p className="text-sm text-primary">
+              Now generate a digest for <span className="font-semibold">'{lectures.find(l => l.id === lectureId)?.title}'</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -213,6 +239,7 @@ export default function GenerateDigest() {
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5"><Target className="w-4 h-4" /> Learning goal</Label>
             <Textarea
+              ref={learningGoalRef}
               value={learningGoal}
               onChange={(e) => setLearningGoal(e.target.value)}
               placeholder="I want to review database normalization for my exam."

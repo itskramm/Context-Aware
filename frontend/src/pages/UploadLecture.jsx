@@ -10,11 +10,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { Upload, Link as LinkIcon, Loader2, Video, CheckCircle2, X, Youtube, FileVideo, AlertCircle, Info } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, X } from 'lucide-react';
 
 export default function UploadLecture() {
   const { user } = useAuth();
@@ -377,12 +376,23 @@ export default function UploadLecture() {
                 </div>
 
                 {loading && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span>Uploading...</span>
+                      <span className="font-medium">{processingStage}</span>
                       <span className="font-medium">{uploadProgress}%</span>
                     </div>
-                    <Progress value={uploadProgress} />
+                    <Progress value={uploadProgress} className="h-2" />
+                    {uploadProgress < 100 && uploadSpeed > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{formatSpeed(uploadSpeed)}</span>
+                        <span>{timeRemaining > 0 ? `${formatTimeRemaining(timeRemaining)} remaining` : 'Calculating...'}</span>
+                      </div>
+                    )}
+                    {uploadProgress === 100 && processingStage !== 'Lecture ready!' && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Still processing, please wait...
+                      </p>
+                    )}
                   </div>
                 )}
 
