@@ -11,7 +11,6 @@ Before you begin, ensure you have:
 - **Firebase** project (for authentication and Firestore database)
 - **Cloudinary** account (for video/image uploads)
 - **Groq** API key (for AI transcription and analysis - 100% FREE!)
-- **YouTube Data API v3** key (optional, for YouTube video processing)
 - **Vercel** account (for frontend deployment)
 - **Render** account (for backend deployment)
 - **EmailJS** account (for password reset emails)
@@ -77,9 +76,6 @@ FRONTEND_URL=https://your-app.vercel.app
 # Get your free Groq API key at: https://console.groq.com
 GROQ_API_KEY=gsk_xxxxxxxxxxxxx
 
-# YouTube Data API v3 (optional)
-YOUTUBE_API_KEY=your_youtube_data_api_v3_key_here
-
 # Cloudinary (video and image uploads)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
@@ -97,10 +93,11 @@ CLOUDINARY_API_SECRET=your_api_secret
 - `JWT_EXPIRE` - JWT token expiration time (e.g., "7d" for 7 days)
 - `FRONTEND_URL` - Frontend URL for CORS configuration
 - `GROQ_API_KEY` - Free Groq API key for AI transcription and analysis
-- `YOUTUBE_API_KEY` - YouTube Data API v3 key (optional, for YouTube uploads)
 - `CLOUDINARY_CLOUD_NAME` - Your Cloudinary cloud name
 - `CLOUDINARY_API_KEY` - Your Cloudinary API key
 - `CLOUDINARY_API_SECRET` - Your Cloudinary API secret
+
+> **Note:** YouTube URL upload has been disabled due to Cloudflare bot detection issues. The application currently supports direct file uploads only.
 
 ---
 

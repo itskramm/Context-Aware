@@ -4,8 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { getFirestore } from '../config/database.js';
 import { processLecture } from '../services/processingService.js';
-import { isYouTubeUrl, extractYouTubeId } from '../services/youtubeTranscriptService.js';
-import { fetchYouTubeMetadata } from '../services/youtubeDataApiService.js';
 import { uploadFileToStorage, generateAndUploadThumbnail } from '../services/storageService.js';
 
 const router = express.Router();
@@ -325,78 +323,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
     res.status(500).json({ error: 'Failed to upload file', details: error.message });
-  }
-});
-
-
-// Create lecture from YouTube URL
-router.post('/youtube', async (req, res) => {
-  try {
-    const { youtubeUrl, title, course, tags, uploadedBy } = req.body;
-
-    if (!youtubeUrl || !uploadedBy) {
-      return res.status(400).json({ error: 'YouTube URL and uploadedBy are required' });
-    }
-    
-    // Validate YouTube URL
-    if (!isYouTubeUrl(youtubeUrl)) {
-      return res.status(400).json({ error: 'Invalid YouTube URL' });
-    }
-    
-    const videoId = extractYouTubeId(youtubeUrl);
-    if (!videoId) {
-      return res.status(400).json({ error: 'Could not extract video ID from URL' });
-    }
-
-    // Fetch rich metadata from YouTube Data API v3 (non-blocking on failure)
-    const metadata = await fetchYouTubeMetadata(videoId);
-
-    const db = getFirestore();
-
-    // Fallback thumbnail in case the API key is missing or the call fails
-    const fallbackThumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-
-    const lectureData = {
-      title: (title && title !== 'YouTube Lecture') ? title : (metadata?.title || title || 'YouTube Lecture'),
-      course: course || '',
-      tags: tags || [],
-      file_url: youtubeUrl,
-      videoUrl: youtubeUrl,
-      thumbnail_url: metadata?.thumbnailUrl || fallbackThumbnail,
-      thumbnailUrl: metadata?.thumbnailUrl || fallbackThumbnail,
-      uploadedBy,
-      status: 'pending',
-      processing_status: 'pending',
-      uploadedAt: new Date().toISOString(),
-      created_date: new Date().toISOString(),
-      duration: metadata?.duration || 0,
-      viewCount: 0,
-      source: 'youtube',
-      youtubeVideoId: videoId,
-      ...(metadata?.publishedAt ? { publishedAt: metadata.publishedAt } : {})
-    };
-
-    const lectureRef = await db.collection('lectures').add(lectureData);
-    const lectureId = lectureRef.id;
-
-    res.status(201).json({
-      message: 'YouTube lecture created',
-      lecture: { id: lectureId, ...lectureData }
-    });
-
-    // Process in background
-    processLecture(lectureId).catch(error => {
-      console.error(`Processing failed:`, error);
-      db.collection('lectures').doc(lectureId).update({
-        status: 'failed',
-        processing_status: 'failed',
-        error: error.message
-      }).catch(err => console.error(err));
-    });
-
-  } catch (error) {
-    console.error('YouTube lecture error:', error);
-    res.status(500).json({ error: error.message });
   }
 });
 
