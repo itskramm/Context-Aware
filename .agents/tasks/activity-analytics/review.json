@@ -1,0 +1,33 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "severity": "blocker",
+      "title": "Only 3 Additional Metrics Instead of 4",
+      "location": "frontend/src/components/dashboard/ActivityAnalytics.jsx:168-192",
+      "issue": "Task explicitly requires '4 additional metrics' but implementation shows only 3 (Total Created, Overall Completion, Current Streak). Watch Time was correctly removed due to data inaccuracy, but no replacement 4th metric was added.",
+      "evidence": "Line 168 comment: '/* Additional metrics - 3 smaller cards */'. Grid layout: 'grid grid-cols-3'. Only three metric cards rendered.",
+      "consequence": "Feature incomplete per task specification. User requested 'more options to the data' (original message #12), but removing Watch Time without replacement delivers fewer options, not more.",
+      "correction": "Add a 4th metric using available backend data: (A) 'Total Watch Time (All)' showing totalLectureSeconds with 'All Time' clarifier, (B) 'Avg Per Item' calculating totalLectureSeconds/totalLectures, (C) 'Processing Rate' showing successful completion percentage, or (D) restore Watch Time with 'Est.' disclaimer and proportional calculation."
+    },
+    {
+      "severity": "blocker",
+      "title": "Overall Completion Rate Does Not Update Per Period",
+      "location": "frontend/src/components/dashboard/ActivityAnalytics.jsx:137",
+      "issue": "completionRate uses fullAnalytics?.completionRate for all three tabs without period-specific calculation. Backend provides only overall completion rate (backend/src/routes/analytics.js:92-93), not per-period data.",
+      "evidence": "completionRate: fullAnalytics?.completionRate || 0. Shows identical value across Day/Week/Month tabs (e.g., '85%' in all three).",
+      "consequence": "Violates task requirement that metrics 'update correctly when switching between Day/Week/Month tabs.' Users may think metric is stuck or broken despite 'Overall' label clarification.",
+      "correction": "Either: (1) Calculate period-specific completion by filtering lectures in period date range and checking their processing status, (2) Remove from Day/Week/Month tabs and display as standalone overall stat outside tabs, or (3) Accept current behavior if clarifying label 'Overall Completion' is deemed sufficient."
+    },
+    {
+      "severity": "blocker",
+      "title": "Current Streak Does Not Update Per Period",
+      "location": "frontend/src/components/dashboard/ActivityAnalytics.jsx:138",
+      "issue": "calculateStreak() always uses full dailyActivity data (180 days), showing identical rolling streak value across all tabs. By definition, a streak counts consecutive days and cannot be period-bound.",
+      "evidence": "streak: calculateStreak(fullAnalytics?.dailyActivity || []). Shows same value in all three tabs (e.g., '7 days' in Day, Week, and Month).",
+      "consequence": "Violates task requirement that metrics 'update correctly when switching between Day/Week/Month tabs.' Appears redundant across tabs despite 'Current Streak' label clarification.",
+      "correction": "Either: (1) Show streak only in Day tab, hide in Week/Month, (2) Change to period-specific 'Active Days' metric counting days with activity in period (data.filter(d => d.lectures > 0 || d.digests > 0).length), or (3) Accept current behavior if clarifying label 'Current Streak' is deemed sufficient."
+    }
+  ],
+  "reviewDoc": "/Users/mark/Context Aware/.agents/tasks/activity-analytics/review.md"
+}
