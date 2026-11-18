@@ -14,6 +14,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   ArrowLeft,
   Loader2,
   Clock,
@@ -28,6 +40,13 @@ import {
   Calendar,
   Trash2,
   CheckCircle2,
+  Download,
+  ExternalLink,
+  ChevronRight,
+  TrendingUp,
+  FileText,
+  Play,
+  Percent,
 } from "lucide-react";
 import {
   formatDuration,
@@ -598,13 +617,13 @@ export default function DigestResults() {
 
       <DigestChat digest={digest} />
 
-      {/* Query Details Modal */}
+      {/* Enhanced Query Details Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold pr-8">{selectedQuery}</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Relevant information from the digest about this topic
+              Explore relevant content from your digest
             </DialogDescription>
           </DialogHeader>
 
@@ -620,103 +639,293 @@ export default function DigestResults() {
                 <div className="py-8 text-center">
                   <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                   <p className="text-sm text-muted-foreground">
-                    No specific content found in the digest for this topic.
+                    This topic wasn't directly covered in the digest.
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    This query was generated based on the digest's main themes.
+                    Try exploring other suggested topics or search the full transcript.
                   </p>
                 </div>
               );
             }
 
+            // Generate AI summary
+            const generateSummary = () => {
+              if (relevantContent.segments.length > 0) {
+                const topics = relevantContent.segments.map(s => s.topic).join(', ');
+                return `This section covers ${topics}. Found ${relevantContent.segments.length} segment${relevantContent.segments.length > 1 ? 's' : ''} and ${relevantContent.takeaways.length} key takeaway${relevantContent.takeaways.length !== 1 ? 's' : ''} related to this topic.`;
+              }
+              return `Found ${relevantContent.takeaways.length} key takeaway${relevantContent.takeaways.length !== 1 ? 's' : ''} and ${relevantContent.transcripts.length} transcript excerpt${relevantContent.transcripts.length !== 1 ? 's' : ''} about this topic.`;
+            };
+
+            // Calculate total duration covered
+            const totalDuration = relevantContent.segments.reduce((sum, seg) => {
+              return sum + (seg.end_time - seg.start_time);
+            }, 0);
+
+            // Calculate average relevance
+            const avgRelevance = relevantContent.segments.length > 0
+              ? Math.round(relevantContent.segments.reduce((sum, seg) => sum + seg.relevance_score, 0) / relevantContent.segments.length)
+              : 0;
+
+            // Copy all content function
+            const copyAllContent = () => {
+              let content = `${selectedQuery}\n\n`;
+              
+              if (relevantContent.takeaways.length > 0) {
+                content += '## Key Takeaways\n';
+                relevantContent.takeaways.forEach(t => content += `• ${t}\n`);
+                content += '\n';
+              }
+              
+              if (relevantContent.segments.length > 0) {
+                content += '## Related Segments\n';
+                relevantContent.segments.forEach(s => {
+                  content += `[${s.start_label}] ${s.topic}\n`;
+                  if (s.explanation) content += `${s.explanation}\n`;
+                  content += '\n';
+                });
+              }
+              
+              if (relevantContent.transcripts.length > 0) {
+                content += '## Transcript Excerpts\n';
+                relevantContent.transcripts.forEach(t => {
+                  content += `[${t.timestamp_label || fmtTime(t.timestamp)}] ${t.text}\n`;
+                });
+              }
+              
+              navigator.clipboard?.writeText(content);
+              toast({ title: "Content copied to clipboard" });
+            };
+
+            // Download as markdown
+            const downloadNotes = () => {
+              const content = `# ${selectedQuery}\n\n${generateSummary()}\n\n` +
+                (relevantContent.takeaways.length > 0 ? `## Key Takeaways\n${relevantContent.takeaways.map(t => `- ${t}`).join('\n')}\n\n` : '') +
+                (relevantContent.segments.length > 0 ? `## Segments\n${relevantContent.segments.map(s => `### [${s.start_label}] ${s.topic}\n${s.explanation || ''}`).join('\n\n')}\n\n` : '') +
+                (relevantContent.transcripts.length > 0 ? `## Transcript\n${relevantContent.transcripts.map(t => `**[${t.timestamp_label || fmtTime(t.timestamp)}]** ${t.text}`).join('\n\n')}` : '');
+              
+              const blob = new Blob([content], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${selectedQuery.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast({ title: "Notes downloaded" });
+            };
+
             return (
-              <div className="space-y-6 pt-2">
-                {/* Relevant Segments */}
-                {relevantContent.segments.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4" /> Related Segments ({relevantContent.segments.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {relevantContent.segments.map((seg) => (
-                        <div 
-                          key={seg.id}
-                          className="rounded-lg border border-border bg-card p-3 hover:border-primary/40 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-1">
-                            <h5 className="font-medium text-sm text-foreground">{seg.topic}</h5>
-                            <button
-                              onClick={() => {
-                                seekTo(seg.start_time, seg.id);
-                                setModalOpen(false);
-                              }}
-                              className="shrink-0 text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              <Clock className="w-3 h-3" />
-                              {seg.start_label}
-                            </button>
-                          </div>
-                          {seg.explanation && (
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              <Highlight text={seg.explanation} terms={relevantContent.queryTerms} />
+              <div className="flex-1 overflow-hidden flex flex-col">
+                {/* Action Bar */}
+                <div className="flex items-center gap-2 pb-4 border-b border-border">
+                  <Button size="sm" variant="outline" onClick={copyAllContent}>
+                    <Copy className="w-3 h-3 mr-1.5" /> Copy All
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={downloadNotes}>
+                    <Download className="w-3 h-3 mr-1.5" /> Export
+                  </Button>
+                  <div className="flex-1" />
+                  {avgRelevance > 0 && (
+                    <Badge variant="secondary" className="gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      {avgRelevance}% relevant
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Tabs */}
+                <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden mt-4">
+                  <TabsList className="grid grid-cols-3 w-full max-w-md">
+                    <TabsTrigger value="overview" className="text-xs sm:text-sm">
+                      Overview
+                    </TabsTrigger>
+                    <TabsTrigger value="segments" className="text-xs sm:text-sm">
+                      Segments ({relevantContent.segments.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="transcript" className="text-xs sm:text-sm">
+                      Transcript ({relevantContent.transcripts.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Overview Tab */}
+                  <TabsContent value="overview" className="flex-1 overflow-y-auto mt-4 space-y-4">
+                    {/* AI Summary */}
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4" /> Summary
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {generateSummary()}
+                      </p>
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                          <FileText className="w-3.5 h-3.5" /> Segments
+                        </div>
+                        <p className="text-xl font-bold text-foreground">{relevantContent.segments.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                          <Clock className="w-3.5 h-3.5" /> Duration
+                        </div>
+                        <p className="text-xl font-bold text-foreground">{compactDuration(totalDuration)}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                          <Percent className="w-3.5 h-3.5" /> Relevance
+                        </div>
+                        <p className="text-xl font-bold text-foreground">{avgRelevance}%</p>
+                      </div>
+                    </div>
+
+                    {/* Key Takeaways */}
+                    {relevantContent.takeaways.length > 0 && (
+                      <div className="rounded-lg border border-border bg-card p-4">
+                        <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <Lightbulb className="w-4 h-4" /> Key Concepts
+                        </h4>
+                        <ul className="space-y-2.5">
+                          {relevantContent.takeaways.map((takeaway, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm">
+                              <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <span className="text-foreground leading-relaxed">
+                                <Highlight text={takeaway} terms={relevantContent.queryTerms} />
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Related Questions */}
+                    {relatedQueries.length > 1 && (
+                      <div className="rounded-lg border border-border bg-card p-4">
+                        <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <HelpCircle className="w-4 h-4" /> You might also want to know...
+                        </h4>
+                        <div className="space-y-2">
+                          {relatedQueries
+                            .filter(q => q !== selectedQuery)
+                            .slice(0, 3)
+                            .map((query, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setSelectedQuery(query)}
+                                className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
+                              >
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                                <span className="flex-1">{query}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Segments Tab */}
+                  <TabsContent value="segments" className="flex-1 overflow-y-auto mt-4 space-y-3">
+                    {relevantContent.segments.length > 0 ? (
+                      relevantContent.segments.map((seg) => (
+                        <Accordion key={seg.id} type="single" collapsible className="border-none">
+                          <AccordionItem value={seg.id} className="rounded-lg border border-border bg-card">
+                            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 rounded-lg">
+                              <div className="flex items-start justify-between gap-3 w-full pr-2">
+                                <div className="flex-1 text-left">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h5 className="font-medium text-sm text-foreground">{seg.topic}</h5>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {seg.relevance_score}%
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {seg.start_label}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{compactDuration(seg.end_time - seg.start_time)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4">
+                              {seg.explanation && (
+                                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                                  <Highlight text={seg.explanation} terms={relevantContent.queryTerms} />
+                                </p>
+                              )}
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  seekTo(seg.start_time, seg.id);
+                                  setModalOpen(false);
+                                }}
+                                className="w-full sm:w-auto"
+                              >
+                                <Play className="w-3 h-3 mr-1.5" />
+                                Jump to this part
+                              </Button>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <p className="text-sm text-muted-foreground">No segments found for this topic</p>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Transcript Tab */}
+                  <TabsContent value="transcript" className="flex-1 overflow-y-auto mt-4 space-y-3">
+                    {relevantContent.transcripts.length > 0 ? (
+                      <div className="space-y-2">
+                        {relevantContent.transcripts.map((t, i) => (
+                          <div 
+                            key={t.id || i}
+                            className="rounded-lg border border-border bg-card p-3 hover:border-primary/40 transition-colors group"
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <button
+                                onClick={() => {
+                                  seekTo(t.timestamp, null);
+                                  setModalOpen(false);
+                                }}
+                                className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Play className="w-3 h-3" />
+                                {t.timestamp_label || fmtTime(t.timestamp)}
+                              </button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(t.text);
+                                  toast({ title: "Excerpt copied" });
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 px-2"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-foreground leading-relaxed">
+                              <Highlight text={t.text || ""} terms={relevantContent.queryTerms} />
                             </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Relevant Takeaways */}
-                {relevantContent.takeaways.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                      <Lightbulb className="w-4 h-4" /> Related Takeaways ({relevantContent.takeaways.length})
-                    </h4>
-                    <ul className="space-y-2.5">
-                      {relevantContent.takeaways.map((takeaway, i) => (
-                        <li key={i} className="flex items-start gap-2.5 text-sm">
-                          <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                          <span className="text-foreground leading-relaxed">
-                            <Highlight text={takeaway} terms={relevantContent.queryTerms} />
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Relevant Transcript Excerpts */}
-                {relevantContent.transcripts.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4" /> Relevant Transcript Excerpts ({relevantContent.transcripts.length})
-                    </h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {relevantContent.transcripts.map((t, i) => (
-                        <div 
-                          key={t.id || i}
-                          className="rounded-lg border border-border bg-card p-3 hover:border-primary/40 transition-colors"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <button
-                              onClick={() => {
-                                seekTo(t.timestamp, null);
-                                setModalOpen(false);
-                              }}
-                              className="text-xs font-mono text-primary hover:underline"
-                            >
-                              {t.timestamp_label || fmtTime(t.timestamp)}
-                            </button>
                           </div>
-                          <p className="text-xs text-foreground leading-relaxed">
-                            <Highlight text={t.text || ""} terms={relevantContent.queryTerms} />
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <p className="text-sm text-muted-foreground">No transcript excerpts found for this topic</p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </div>
             );
           })()}
