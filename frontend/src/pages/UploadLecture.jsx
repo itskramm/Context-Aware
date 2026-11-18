@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -217,12 +217,23 @@ export default function UploadLecture() {
             </div>
 
             {loading && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
+              <div className="space-y-4 p-6 border border-border rounded-xl bg-card">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-[60%]" />
+                    <Skeleton className="h-3 w-[40%]" />
+                  </div>
                 </div>
-                <Progress value={uploadProgress} className="h-2" />
+                <Skeleton className="h-2 w-full" />
+                <div className="grid grid-cols-3 gap-3">
+                  <Skeleton className="h-16 rounded-lg" />
+                  <Skeleton className="h-16 rounded-lg" />
+                  <Skeleton className="h-16 rounded-lg" />
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Uploading your lecture...
+                </p>
               </div>
             )}
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -142,41 +143,18 @@ export default function GenerateDigest() {
   };
 
   if (generating) {
-    const progressPercent = Math.round(((genStage + 1) / GEN_STAGES.length) * 100);
-    
     return (
       <div className="p-6 sm:p-8 max-w-2xl mx-auto">
-        <div className="rounded-2xl border border-border bg-card p-8 sm:p-10">
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="w-7 h-7 animate-spin" />
-            </div>
-            <h2 className="text-xl font-bold tracking-tight">Analyzing your lecture…</h2>
-            <p className="text-muted-foreground mt-1.5 text-sm">
-              We're matching the lecture content to your learning goal.
-            </p>
-            <div className="mt-4">
-              <div className="text-2xl font-bold text-primary">{progressPercent}%</div>
-            </div>
+        <div className="space-y-4 p-6 border border-border rounded-xl bg-card">
+          <Skeleton className="h-6 w-[70%] mb-2" />
+          <Skeleton className="h-2 w-full mb-4" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-[90%]" />
+            <Skeleton className="h-4 w-[80%]" />
           </div>
-          <div className="space-y-3">
-            {GEN_STAGES.map((s, i) => {
-              const done = i < genStage;
-              const current = i === genStage;
-              return (
-                <div key={s} className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                    done ? "bg-green-500 text-white" : current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {done ? <CheckCircle2 className="w-4 h-4" /> : current ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-xs font-semibold">{i + 1}</span>}
-                  </div>
-                  <span className={`text-sm ${done || current ? "font-medium text-foreground" : "text-muted-foreground"}`}>{s}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-6 text-center">
-            AI is analyzing the transcript and matching it to your learning goal.
+          <p className="text-sm text-muted-foreground text-center mt-4">
+            {GEN_STAGES[genStage]}
           </p>
         </div>
       </div>
