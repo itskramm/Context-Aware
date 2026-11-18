@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { Loader2, Library, Sparkles, Clock, Eye, CheckCircle, Flame } from 'lucide-react';
+import { Loader2, Library, Sparkles, FileText, CheckCircle, Flame } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function ActivityAnalytics() {
@@ -91,13 +91,7 @@ export default function ActivityAnalytics() {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   };
 
-  // Helper function to format seconds to hours:minutes
-  const formatDuration = (seconds) => {
-    if (!seconds || seconds === 0) return '0:00';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}:${String(minutes).padStart(2, '0')}`;
-  };
+
 
   // Calculate activity streak from daily data
   const calculateStreak = (dailyData) => {
@@ -133,18 +127,12 @@ export default function ActivityAnalytics() {
   const calculatePeriodMetrics = (data, fullAnalytics) => {
     const lectures = data.reduce((sum, d) => sum + d.lectures, 0);
     const digests = data.reduce((sum, d) => sum + d.digests, 0);
-    const views = lectures + digests;
-    
-    // Estimate watch time based on period data proportion
-    const totalActivities = fullAnalytics?.dailyActivity?.reduce((sum, d) => sum + d.lectures + d.digests, 0) || 1;
-    const periodActivities = views;
-    const watchTimeSeconds = Math.round((fullAnalytics?.totalLectureSeconds || 0) * (periodActivities / Math.max(totalActivities, 1)));
+    const totalCreated = lectures + digests;
     
     return {
       lectures,
       digests,
-      views,
-      watchTimeSeconds,
+      totalCreated,
       completionRate: fullAnalytics?.completionRate || 0,
       streak: calculateStreak(fullAnalytics?.dailyActivity || [])
     };
@@ -176,28 +164,20 @@ export default function ActivityAnalytics() {
           </div>
         </div>
 
-        {/* Additional metrics - 4 smaller cards */}
-        <div className="grid grid-cols-4 gap-3">
+        {/* Additional metrics - 3 smaller cards */}
+        <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Clock className="w-3.5 h-3.5 text-primary" />
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Watch Time</p>
+              <FileText className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Created</p>
             </div>
-            <p className="text-lg font-bold">{formatDuration(metrics.watchTimeSeconds)}</p>
-          </div>
-          
-          <div className="rounded-lg bg-background/50 border border-border p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Eye className="w-3.5 h-3.5 text-primary" />
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Views</p>
-            </div>
-            <p className="text-lg font-bold">{metrics.views}</p>
+            <p className="text-lg font-bold">{metrics.totalCreated}</p>
           </div>
           
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <CheckCircle className="w-3.5 h-3.5 text-primary" />
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Completion</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Overall Completion</p>
             </div>
             <p className="text-lg font-bold">{metrics.completionRate}%</p>
           </div>
@@ -205,7 +185,7 @@ export default function ActivityAnalytics() {
           <div className="rounded-lg bg-background/50 border border-border p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Flame className="w-3.5 h-3.5 text-primary" />
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Streak</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Current Streak</p>
             </div>
             <p className="text-lg font-bold">{metrics.streak} {metrics.streak === 1 ? 'day' : 'days'}</p>
           </div>
