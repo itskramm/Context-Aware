@@ -219,7 +219,7 @@ export default function ActivityAnalytics() {
       );
     }
 
-    const maxValue = Math.max(...data.map(d => Math.max(d.lectures, d.digests)), 1);
+    const maxValue = Math.max(...data.map(d => d.lectures + d.digests), 1);
 
     return (
       <div className="mt-6 rounded-lg border border-border bg-background/30 p-4">
@@ -230,19 +230,19 @@ export default function ActivityAnalytics() {
             const dateLabel = viewType === 'week' ? formatDateLabel(item.startDate || item.date, viewType) : formatDateLabel(item.date, viewType);
             
             return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex items-end justify-center gap-0.5 h-24">
-                  {/* Lectures bar */}
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                <div className="w-full flex flex-col-reverse gap-0.5 h-24">
+                  {/* Digests bar (top) */}
                   <div 
-                    className="flex-1 bg-blue-500/70 dark:bg-blue-400/60 rounded-t transition-all hover:bg-blue-500/90 dark:hover:bg-blue-400/80" 
-                    style={{ height: `${lectureHeight}%`, minHeight: lectureHeight > 0 ? '2px' : '0' }}
-                    title={`${item.lectures} lectures`}
-                  />
-                  {/* Digests bar */}
-                  <div 
-                    className="flex-1 bg-violet-500/60 dark:bg-violet-400/50 rounded-t transition-all hover:bg-violet-500/80 dark:hover:bg-violet-400/70" 
+                    className="w-full bg-violet-500/60 dark:bg-violet-400/50 rounded-t transition-all group-hover:bg-violet-500/80 dark:group-hover:bg-violet-400/70" 
                     style={{ height: `${digestHeight}%`, minHeight: digestHeight > 0 ? '2px' : '0' }}
                     title={`${item.digests} digests`}
+                  />
+                  {/* Lectures bar (bottom) */}
+                  <div 
+                    className="w-full bg-blue-500/70 dark:bg-blue-400/60 rounded-b transition-all group-hover:bg-blue-500/90 dark:group-hover:bg-blue-400/80" 
+                    style={{ height: `${lectureHeight}%`, minHeight: lectureHeight > 0 ? '2px' : '0' }}
+                    title={`${item.lectures} lectures`}
                   />
                 </div>
                 <span className="text-[9px] text-muted-foreground whitespace-nowrap">{dateLabel}</span>
