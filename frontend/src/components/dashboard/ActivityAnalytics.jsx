@@ -223,6 +223,19 @@ export default function ActivityAnalytics() {
 
     return (
       <div className="mt-6 rounded-lg border border-border bg-background/30 p-4">
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 mb-3 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-blue-500/70 dark:bg-blue-400/60" />
+            <span className="text-muted-foreground">Lectures</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-violet-500/60 dark:bg-violet-400/50" />
+            <span className="text-muted-foreground">Digests</span>
+          </div>
+        </div>
+        
+        {/* Bar chart */}
         <div className="flex items-end justify-between gap-2 h-32">
           {data.map((item, i) => {
             const lectureHeight = (item.lectures / maxValue) * 100;
