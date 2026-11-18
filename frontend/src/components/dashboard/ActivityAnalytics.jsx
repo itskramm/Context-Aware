@@ -91,6 +91,114 @@ export default function ActivityAnalytics() {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   };
 
+  // Bar Chart Component
+  const BarChart = ({ data, type }) => {
+    const [hoveredIndex, setHoveredIndex] = useState(null);
+    
+    // Calculate max value for scaling
+    const maxValue = Math.max(
+      ...data.map(item => item.lectures + item.digests),
+      1 // Minimum of 1 to avoid division by zero
+    );
+
+    // Format label based on type
+    const formatLabel = (item, index) => {
+      if (type === 'day') {
+        const date = new Date(item.date);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      } else if (type === 'week') {
+        const start = new Date(item.startDate);
+        return `${start.getMonth() + 1}/${start.getDate()}`;
+      } else {
+        const date = new Date(item.date);
+        return date.toLocaleDateString('en-US', { month: 'short' });
+      }
+    };
+
+    return (
+      <div className="mt-6">
+        <div className="flex items-end justify-between gap-1 h-[120px] px-2">
+          {data.map((item, index) => {
+            const lectureHeight = (item.lectures / maxValue) * 100;
+            const digestHeight = (item.digests / maxValue) * 100;
+            const totalHeight = lectureHeight + digestHeight;
+            
+            return (
+              <div 
+                key={index} 
+                className="flex-1 flex flex-col items-center gap-1 relative group"
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                {/* Tooltip */}
+                {hoveredIndex === index && (
+                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-popover border border-border rounded-lg shadow-lg p-2 text-xs whitespace-nowrap z-10 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <div className="font-semibold mb-1">{formatLabel(item, index)}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-sm bg-primary"></div>
+                      <span>Lectures: {item.lectures}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-sm bg-primary/40"></div>
+                      <span>Digests: {item.digests}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Bar */}
+                <div className="w-full flex flex-col justify-end h-full">
+                  {totalHeight > 0 ? (
+                    <div 
+                      className="w-full rounded-t-md transition-all duration-300 ease-out hover:opacity-80"
+                      style={{ height: `${totalHeight}%` }}
+                    >
+                      {/* Digests (top part) */}
+                      {digestHeight > 0 && (
+                        <div 
+                          className="w-full bg-primary/40 rounded-t-md transition-all duration-300"
+                          style={{ height: `${(digestHeight / totalHeight) * 100}%` }}
+                        />
+                      )}
+                      {/* Lectures (bottom part) */}
+                      {lectureHeight > 0 && (
+                        <div 
+                          className="w-full bg-primary transition-all duration-300"
+                          style={{ 
+                            height: `${(lectureHeight / totalHeight) * 100}%`,
+                            borderRadius: digestHeight === 0 ? '0.375rem 0.375rem 0 0' : '0'
+                          }}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-full h-1 bg-muted/30 rounded-full" />
+                  )}
+                </div>
+                
+                {/* Label */}
+                <div className="text-[10px] text-muted-foreground mt-1 text-center">
+                  {formatLabel(item, index)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-primary"></div>
+            <span className="text-muted-foreground">Lectures</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-primary/40"></div>
+            <span className="text-muted-foreground">Digests</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render stats cards
   const renderStatsCards = (totals, labels) => {
     return (
@@ -172,14 +280,17 @@ export default function ActivityAnalytics() {
 
         <TabsContent value="day" className="mt-0">
           {renderStatsCards(dayTotals, { lectures: 'Lectures', digests: 'Digests' })}
+          {recentDays.length > 0 && <BarChart data={recentDays} type="day" />}
         </TabsContent>
 
         <TabsContent value="week" className="mt-0">
           {renderStatsCards(weekTotals, { lectures: 'Lectures', digests: 'Digests' })}
+          {weeklyData.length > 0 && <BarChart data={weeklyData} type="week" />}
         </TabsContent>
 
         <TabsContent value="month" className="mt-0">
           {renderStatsCards(monthTotals, { lectures: 'Lectures', digests: 'Digests' })}
+          {monthlyData.length > 0 && <BarChart data={monthlyData} type="month" />}
         </TabsContent>
       </Tabs>
     </div>
