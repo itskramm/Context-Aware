@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { Loader2, Library, Sparkles } from 'lucide-react';
+import { Loader2, Library, Sparkles, Clock, Eye, CheckCircle, Flame } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function ActivityAnalytics() {
@@ -91,135 +91,124 @@ export default function ActivityAnalytics() {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   };
 
-  // Bar Chart Component
-  const BarChart = ({ data, type }) => {
-    const [hoveredIndex, setHoveredIndex] = useState(null);
-    
-    // Calculate max value for scaling
-    const maxValue = Math.max(
-      ...data.map(item => item.lectures + item.digests),
-      1 // Minimum of 1 to avoid division by zero
-    );
-
-    // Format label based on type
-    const formatLabel = (item, index) => {
-      if (type === 'day') {
-        const date = new Date(item.date);
-        return `${date.getMonth() + 1}/${date.getDate()}`;
-      } else if (type === 'week') {
-        const start = new Date(item.startDate);
-        return `${start.getMonth() + 1}/${start.getDate()}`;
-      } else {
-        const date = new Date(item.date);
-        return date.toLocaleDateString('en-US', { month: 'short' });
-      }
-    };
-
-    return (
-      <div className="mt-6">
-        <div className="flex items-end justify-between gap-1 h-[120px] px-2">
-          {data.map((item, index) => {
-            const lectureHeight = (item.lectures / maxValue) * 100;
-            const digestHeight = (item.digests / maxValue) * 100;
-            const totalHeight = lectureHeight + digestHeight;
-            
-            return (
-              <div 
-                key={index} 
-                className="flex-1 flex flex-col items-center gap-1 relative group"
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                {/* Tooltip */}
-                {hoveredIndex === index && (
-                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-popover border border-border rounded-lg shadow-lg p-2 text-xs whitespace-nowrap z-10 animate-in fade-in-0 zoom-in-95 duration-200">
-                    <div className="font-semibold mb-1">{formatLabel(item, index)}</div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-sm bg-primary"></div>
-                      <span>Lectures: {item.lectures}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-sm bg-primary/40"></div>
-                      <span>Digests: {item.digests}</span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Bar */}
-                <div className="w-full flex flex-col justify-end h-full">
-                  {totalHeight > 0 ? (
-                    <div 
-                      className="w-full rounded-t-md transition-all duration-300 ease-out hover:opacity-80"
-                      style={{ height: `${totalHeight}%` }}
-                    >
-                      {/* Digests (top part) */}
-                      {digestHeight > 0 && (
-                        <div 
-                          className="w-full bg-primary/40 rounded-t-md transition-all duration-300"
-                          style={{ height: `${(digestHeight / totalHeight) * 100}%` }}
-                        />
-                      )}
-                      {/* Lectures (bottom part) */}
-                      {lectureHeight > 0 && (
-                        <div 
-                          className="w-full bg-primary transition-all duration-300"
-                          style={{ 
-                            height: `${(lectureHeight / totalHeight) * 100}%`,
-                            borderRadius: digestHeight === 0 ? '0.375rem 0.375rem 0 0' : '0'
-                          }}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-full h-1 bg-muted/30 rounded-full" />
-                  )}
-                </div>
-                
-                {/* Label */}
-                <div className="text-[10px] text-muted-foreground mt-1 text-center">
-                  {formatLabel(item, index)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Legend */}
-        <div className="flex items-center justify-center gap-4 mt-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-primary"></div>
-            <span className="text-muted-foreground">Lectures</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-primary/40"></div>
-            <span className="text-muted-foreground">Digests</span>
-          </div>
-        </div>
-      </div>
-    );
+  // Helper function to format seconds to hours:minutes
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '0:00';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}:${String(minutes).padStart(2, '0')}`;
   };
 
-  // Render stats cards
-  const renderStatsCards = (totals, labels) => {
+  // Calculate activity streak from daily data
+  const calculateStreak = (dailyData) => {
+    if (!dailyData || dailyData.length === 0) return 0;
+    
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Sort by date descending
+    const sortedData = [...dailyData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    for (let i = 0; i < sortedData.length; i++) {
+      const itemDate = new Date(sortedData[i].date);
+      itemDate.setHours(0, 0, 0, 0);
+      
+      const expectedDate = new Date(today);
+      expectedDate.setDate(expectedDate.getDate() - i);
+      
+      // Check if this date has activity and matches expected date
+      if (itemDate.getTime() === expectedDate.getTime() && 
+          (sortedData[i].lectures > 0 || sortedData[i].digests > 0)) {
+        streak++;
+      } else if (itemDate.getTime() < expectedDate.getTime()) {
+        break; // Gap in activity
+      }
+    }
+    
+    return streak;
+  };
+
+  // Calculate metrics for a given period's data
+  const calculatePeriodMetrics = (data, fullAnalytics) => {
+    const lectures = data.reduce((sum, d) => sum + d.lectures, 0);
+    const digests = data.reduce((sum, d) => sum + d.digests, 0);
+    const views = lectures + digests;
+    
+    // Estimate watch time based on period data proportion
+    const totalActivities = fullAnalytics?.dailyActivity?.reduce((sum, d) => sum + d.lectures + d.digests, 0) || 1;
+    const periodActivities = views;
+    const watchTimeSeconds = Math.round((fullAnalytics?.totalLectureSeconds || 0) * (periodActivities / Math.max(totalActivities, 1)));
+    
+    return {
+      lectures,
+      digests,
+      views,
+      watchTimeSeconds,
+      completionRate: fullAnalytics?.completionRate || 0,
+      streak: calculateStreak(fullAnalytics?.dailyActivity || [])
+    };
+  };
+
+  // Render stats cards with additional metrics
+  const renderStatsCards = (metrics) => {
     return (
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl bg-background/50 border border-border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Library className="w-4 h-4" />
+      <div className="space-y-4">
+        {/* Main stats - Lectures and Digests */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-xl bg-background/50 border border-border p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Library className="w-4 h-4" />
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">Lectures</p>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">{labels.lectures}</p>
+            <p className="text-3xl font-bold">{metrics.lectures}</p>
           </div>
-          <p className="text-3xl font-bold">{totals.lectures}</p>
+          <div className="rounded-xl bg-background/50 border border-border p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">Digests</p>
+            </div>
+            <p className="text-3xl font-bold">{metrics.digests}</p>
+          </div>
         </div>
-        <div className="rounded-xl bg-background/50 border border-border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+
+        {/* Additional metrics - 4 smaller cards */}
+        <div className="grid grid-cols-4 gap-3">
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Clock className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Watch Time</p>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">{labels.digests}</p>
+            <p className="text-lg font-bold">{formatDuration(metrics.watchTimeSeconds)}</p>
           </div>
-          <p className="text-3xl font-bold">{totals.digests}</p>
+          
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Eye className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Views</p>
+            </div>
+            <p className="text-lg font-bold">{metrics.views}</p>
+          </div>
+          
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Completion</p>
+            </div>
+            <p className="text-lg font-bold">{metrics.completionRate}%</p>
+          </div>
+          
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Flame className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Streak</p>
+            </div>
+            <p className="text-lg font-bold">{metrics.streak} {metrics.streak === 1 ? 'day' : 'days'}</p>
+          </div>
         </div>
       </div>
     );
@@ -250,21 +239,10 @@ export default function ActivityAnalytics() {
   const weeklyData = aggregateWeeks(dailyData);
   const monthlyData = aggregateMonths(dailyData);
 
-  // Calculate totals for each period
-  const dayTotals = recentDays.reduce((acc, d) => ({ 
-    lectures: acc.lectures + d.lectures, 
-    digests: acc.digests + d.digests 
-  }), { lectures: 0, digests: 0 });
-
-  const weekTotals = weeklyData.reduce((acc, w) => ({ 
-    lectures: acc.lectures + w.lectures, 
-    digests: acc.digests + w.digests 
-  }), { lectures: 0, digests: 0 });
-
-  const monthTotals = monthlyData.reduce((acc, m) => ({ 
-    lectures: acc.lectures + m.lectures, 
-    digests: acc.digests + m.digests 
-  }), { lectures: 0, digests: 0 });
+  // Calculate metrics for each period
+  const dayMetrics = calculatePeriodMetrics(recentDays, analytics);
+  const weekMetrics = calculatePeriodMetrics(weeklyData, analytics);
+  const monthMetrics = calculatePeriodMetrics(monthlyData, analytics);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 mb-10">
@@ -279,18 +257,15 @@ export default function ActivityAnalytics() {
         </TabsList>
 
         <TabsContent value="day" className="mt-0">
-          {renderStatsCards(dayTotals, { lectures: 'Lectures', digests: 'Digests' })}
-          {recentDays.length > 0 && <BarChart data={recentDays} type="day" />}
+          {renderStatsCards(dayMetrics)}
         </TabsContent>
 
         <TabsContent value="week" className="mt-0">
-          {renderStatsCards(weekTotals, { lectures: 'Lectures', digests: 'Digests' })}
-          {weeklyData.length > 0 && <BarChart data={weeklyData} type="week" />}
+          {renderStatsCards(weekMetrics)}
         </TabsContent>
 
         <TabsContent value="month" className="mt-0">
-          {renderStatsCards(monthTotals, { lectures: 'Lectures', digests: 'Digests' })}
-          {monthlyData.length > 0 && <BarChart data={monthlyData} type="month" />}
+          {renderStatsCards(monthMetrics)}
         </TabsContent>
       </Tabs>
     </div>
