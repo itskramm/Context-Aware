@@ -151,7 +151,7 @@ export default function Settings() {
               <label className="block text-sm font-medium mb-1.5">Current Password</label>
               <PasswordInput
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                onChange={(value) => setCurrentPassword(value)}
                 placeholder="Enter current password"
                 disabled={changingPassword}
               />
@@ -161,7 +161,7 @@ export default function Settings() {
               <label className="block text-sm font-medium mb-1.5">New Password</label>
               <PasswordInput
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(value) => setNewPassword(value)}
                 placeholder="Enter new password"
                 disabled={changingPassword}
               />
@@ -176,7 +176,7 @@ export default function Settings() {
               <label className="block text-sm font-medium mb-1.5">Confirm New Password</label>
               <PasswordInput
                 value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                onChange={(value) => setConfirmNewPassword(value)}
                 placeholder="Re-enter new password"
                 disabled={changingPassword}
               />
