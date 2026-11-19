@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button';
 export default function PasswordInput({ value, onChange, placeholder = 'Password', ...props }) {
   const [showPassword, setShowPassword] = useState(false);
 
+  const handleChange = (e) => {
+    // Support both event handler and direct value callback
+    if (typeof onChange === 'function') {
+      onChange(e.target.value);
+    }
+  };
+
   return (
     <div className="relative">
       <Input
         type={showPassword ? 'text' : 'password'}
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
         placeholder={placeholder}
         {...props}
       />
