@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
       username: email,
       role: 'User',
       access_type: 'User',
-      passwordHistory: [],
+      passwordHistory: [hashedPassword], // Store initial password in history to prevent immediate reuse
       failedLoginAttempts: 0,
       loginLockedUntil: null,
       createdAt: new Date().toISOString(),
@@ -273,14 +273,26 @@ router.post('/reset-password', async (req, res) => {
 
     const userDoc = snapshot.docs[0];
     const user = userDoc.data();
+    
+    // Check if new password was used before (in last 5 passwords)
+    const passwordHistory = user.passwordHistory || [];
+    const allPreviousHashes = [user.password, ...passwordHistory].slice(0, 5);
+    
+    // Check all hashes in constant time
+    const comparisonResults = await Promise.all(
+      allPreviousHashes.map(hash => bcrypt.compare(newPassword, hash))
+    );
+    
+    // Check if any comparison matched
+    const isReused = comparisonResults.some(result => result === true);
+    if (isReused) {
+      return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
+    }
+    
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     // Update password history - keep last 5
-    const passwordHistory = user.passwordHistory || [];
-    if (user.password) {
-      passwordHistory.unshift(user.password);
-    }
-    const updatedHistory = passwordHistory.slice(0, 5);
+    const updatedHistory = [user.password, ...passwordHistory].slice(0, 5);
     
     await userDoc.ref.update({ 
       password: hashedPassword, 
