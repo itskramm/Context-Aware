@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { Upload, Loader2, CheckCircle2, X } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, X, Info, ExternalLink } from 'lucide-react';
 
 export default function UploadLecture() {
   const { user } = useAuth();
@@ -155,6 +155,25 @@ export default function UploadLecture() {
         </CardHeader>
         <form onSubmit={handleFileSubmit}>
           <CardContent className="space-y-4">
+            {/* YouTube to MP4 Converter Info */}
+            <Alert className="mb-6">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Need to download a YouTube video?</AlertTitle>
+              <AlertDescription>
+                Convert YouTube videos to MP4 files using{' '}
+                <a 
+                  href="https://y2mate.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  Y2mate
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                {' '}— a free and trusted converter (third-party service). Download the video, then upload it here.
+              </AlertDescription>
+            </Alert>
+
             {/* Drag & Drop Zone */}
             <div
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
