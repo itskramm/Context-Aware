@@ -47,12 +47,16 @@ export function clearOtp() {
  */
 export async function sendOtp(email, name, purpose = 'register') {
   const code = generateOtp();
-  saveOtp(email, code);
 
   const templateId = purpose === 'reset' ? RST_TEMPLATE : OTP_TEMPLATE;
   const purposeLabel = purpose === 'reset' ? 'Password reset' : 'Account verification';
 
-  await emailjs.send(
+  if (!SERVICE_ID || !templateId || !PUBLIC_KEY) {
+    throw new Error('Email verification is not configured. Please contact the site administrator.');
+  }
+
+  try {
+    await emailjs.send(
     SERVICE_ID,
     templateId,
     {
@@ -62,7 +66,12 @@ export async function sendOtp(email, name, purpose = 'register') {
       otp_purpose: purposeLabel,
     },
     PUBLIC_KEY,
-  );
+    );
+  } catch (error) {
+    console.error('Email verification delivery failed:', error?.status, error?.text || error?.message);
+    throw new Error('The email service could not send the code. Please try again or contact the site administrator.');
+  }
+  saveOtp(email, code);
 }
 
 /**

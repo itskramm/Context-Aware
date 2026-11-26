@@ -125,7 +125,7 @@ export default function Register() {
       setOtpSent(true);
       setCooldown(RESEND_COOLDOWN);
     } catch (err) {
-      setGlobalError("We couldn't send the verification code. Please try sending it again.");
+      setGlobalError(err?.message || "We couldn't send the verification code. Please try sending it again.");
     } finally {
       setLoading(false);
     }
