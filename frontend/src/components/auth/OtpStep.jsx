@@ -9,6 +9,7 @@ import BackButton from "@/components/BackButton";
 // resend with cooldown, and a new code invalidates the previous one.
 export default function OtpStep({
   email,
+  otpSent = true,
   otpCode,
   setOtpCode,
   loading,
@@ -23,7 +24,7 @@ export default function OtpStep({
     <AuthLayout
       icon={Mail}
       title="Verify your email"
-      subtitle={`We sent a 6-digit code to ${email}`}
+      subtitle={otpSent ? `We sent a 6-digit code to ${email}` : `Send a verification code to ${email}`}
     >
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -51,7 +52,7 @@ export default function OtpStep({
       <Button
         className="w-full h-12 font-medium"
         onClick={onVerify}
-        disabled={loading || blocked || otpCode.length < 6}
+        disabled={loading || !otpSent || blocked || otpCode.length < 6}
       >
         {loading ? (
           <>
@@ -76,13 +77,13 @@ export default function OtpStep({
           `Resend available in ${cooldown}s`
         ) : (
           <>
-            Didn't receive the code?{" "}
+            {otpSent ? "Didn't receive the code?" : "Code not sent."}{" "}
             <button
               type="button"
               onClick={onResend}
               className="text-primary font-medium hover:underline"
             >
-              Resend OTP
+              {otpSent ? "Resend OTP" : "Send OTP"}
             </button>
           </>
         )}

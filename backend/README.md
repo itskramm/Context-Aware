@@ -44,3 +44,13 @@ API endpoints will be documented here as they are developed.
 - Express.js
 - MongoDB with Mongoose
 - JWT for authentication
+
+### Password reset email configuration
+
+Set `JWT_SECRET`, `EMAILJS_SERVICE_ID`, `EMAILJS_RESET_TEMPLATE_ID`,
+`EMAILJS_PUBLIC_KEY`, and `EMAILJS_PRIVATE_KEY` in the backend environment. The
+private key must remain server-side. Configure the EmailJS reset template to use
+`to_email`, `to_name`, `otp_code`, and `otp_purpose`. The server sends the code;
+the browser never chooses it. Deploy the backend and updated Firestore rules
+before enabling password reset. Codes expire after five minutes and verified
+reset tokens expire after ten minutes.

@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
       query = query.where('digestId', '==', digest_id);
     }
     
-    query = query.orderBy('startTime', 'asc').limit(parseInt(limit));
+    query = query.limit(parseInt(limit));
     
     const snapshot = await query.get();
     
@@ -36,6 +36,7 @@ router.get('/', async (req, res) => {
       });
     });
 
+    segments.sort ( (a, b) => a.start_time - b.start_time );
     res.json(segments);
   } catch (error) {
     console.error('Get segments error:', error);

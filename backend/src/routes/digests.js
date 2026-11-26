@@ -10,11 +10,9 @@ router.get('/', async (req, res) => {
     const { userId, lectureId: lectureIdParam, lecture_id, status, limit = 50 } = req.query;
     const lectureId = lectureIdParam || lecture_id;
     
-    let query = db.collection('digests');
+    let query = db.collection('digests').where('userId', '==', req.user.userId);
     
-    if (userId) {
-      query = query.where('userId', '==', userId);
-    }
+
     
     if (lectureId) {
       query = query.where('lectureId', '==', lectureId);
@@ -24,7 +22,7 @@ router.get('/', async (req, res) => {
       query = query.where('status', '==', status);
     }
     
-    query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
+    query = query.limit(parseInt(limit));
     
     const snapshot = await query.get();
     
@@ -36,6 +34,7 @@ router.get('/', async (req, res) => {
       });
     });
 
+    digests.sort((a, b) => (b.createdAt || b.created_date || '').localeCompare(a.createdAt || a.created_date || ''));
     res.json({ digests, count: digests.length });
   } catch (error) {
     console.error('Get digests error:', error);
@@ -66,7 +65,8 @@ router.get('/:id', async (req, res) => {
 // Create digest
 router.post('/', async (req, res) => {
   try {
-    const { lectureId, userId, type = 'summary' } = req.body;
+    const { lectureId, type = 'summary' } = req.body;
+    const userId = req.user.userId;
 
     if (!lectureId || !userId) {
       return res.status(400).json({ error: 'lectureId and userId are required' });
@@ -122,6 +122,9 @@ router.patch('/:id', async (req, res) => {
 
     const updates = { ...req.body };
     delete updates.id;
+    delete updates.userId;
+    delete updates.lectureId;
+    delete updates.lecture_id;
     
     await digestRef.update(updates);
 

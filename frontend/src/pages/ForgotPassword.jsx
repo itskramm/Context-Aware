@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Mail, ArrowLeft, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import OtpStep from "@/components/auth/OtpStep";
-import { sendOtp, verifyOtp } from "@/lib/emailService";
 import { toast } from "@/components/ui/use-toast";
 import { validateEmail } from "@/lib/authValidations";
 
@@ -42,7 +41,7 @@ export default function ForgotPassword() {
     try {
       // Check the account exists before sending (fire-and-forget ok if it fails —
       // we still proceed to avoid leaking whether an email is registered)
-      await sendOtp(email, email, "reset");
+      await base44.auth.forgotPassword(email);
       localStorage.setItem("pwd_reset_email", email);
       setStep("otp");
       setCooldown(RESEND_COOLDOWN);
@@ -58,10 +57,15 @@ export default function ForgotPassword() {
   };
 
   // Step 2 — verify OTP
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setOtpError("");
-    const err = verifyOtp(email, otpCode);
-    if (err) {
+    setLoading(true);
+    try {
+      const result = await base44.auth.verifyOtp({ email, code: otpCode });
+      sessionStorage.setItem("pwd_reset_verified_email", email);
+      sessionStorage.setItem("pwd_reset_token", result.resetToken);
+      navigate("/reset-password");
+    } catch (err) {
       const attempts = otpAttempts + 1;
       setOtpAttempts(attempts);
       const left = MAX_OTP_ATTEMPTS - attempts;
@@ -69,14 +73,12 @@ export default function ForgotPassword() {
         setOtpBlocked(true);
         setOtpError("Too many incorrect attempts. Please request a new code.");
       } else {
-        setOtpError(`${err} ${left} attempt${left === 1 ? "" : "s"} remaining.`);
+        setOtpError(`${err?.message || "Invalid code."} ${left} attempt${left === 1 ? "" : "s"} remaining.`);
       }
       setOtpCode("");
-      return;
+    } finally {
+      setLoading(false);
     }
-    // OTP correct — mark email as verified and go to reset page
-    sessionStorage.setItem("pwd_reset_verified_email", email);
-    navigate("/reset-password");
   };
 
   // Resend OTP
@@ -84,7 +86,7 @@ export default function ForgotPassword() {
     setOtpError("");
     setLoading(true);
     try {
-      await sendOtp(email, email, "reset");
+      await base44.auth.forgotPassword(email);
       setOtpAttempts(0);
       setOtpBlocked(false);
       setOtpCode("");

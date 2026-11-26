@@ -2,6 +2,8 @@ import express from 'express';
 import { getFirestore } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import axios from 'axios';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -31,7 +33,7 @@ function safeUser(doc) {
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, role = 'student' } = req.body;
+    const { email, password, name, birthday, address, mobile_number } = req.body;
     console.log(`[Auth] Register attempt: ${email}`);
 
     if (!email || !password || !name) {
@@ -51,9 +53,9 @@ router.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       name,
-      birthday: null,
-      address: null,
-      mobile_number: null,
+      birthday: birthday || null,
+      address: address || null,
+      mobile_number: mobile_number || null,
       username: email,
       role: 'User',
       access_type: 'User',
@@ -216,95 +218,104 @@ router.patch('/me', authenticate, async (req, res) => {
   }
 });
 
-// ─── Forgot password (OTP is sent client-side via EmailJS) ───────────────────
+// Password reset codes and grants are generated and verified only on the server.
+const resetHash = value => crypto.createHmac('sha256', process.env.JWT_SECRET).update(value).digest('hex');
+const resetRef = email => getFirestore().collection('password_resets').doc(resetHash(email));
+const normalizeEmail = email => typeof email === 'string' ? email.trim().toLowerCase() : '';
 
 router.post('/forgot-password', async (req, res) => {
-  // OTP sending is handled by EmailJS on the frontend.
-  // This endpoint checks that the email exists and logs the request.
+  const email = normalizeEmail(req.body.email);
+  if (!email || email.length > 254 || !email.includes('@')) return res.status(400).json({ error: 'Valid email is required' });
+  const { EMAILJS_SERVICE_ID, EMAILJS_RESET_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY, JWT_SECRET } = process.env;
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_RESET_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !EMAILJS_PRIVATE_KEY || !JWT_SECRET) {
+    return res.status(503).json({ error: 'Password reset email is not configured.' });
+  }
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email is required' });
-
     const db = getFirestore();
-    const snapshot = await db.collection('users').where('email', '==', email).get();
-    console.log(`[Auth] Forgot-password request: ${email} (found=${!snapshot.empty})`);
-
-    // Always respond with success to avoid leaking whether an email is registered
+    const ref = resetRef(email);
+    const code = String(crypto.randomInt(100000, 1000000));
+    const now = Date.now();
+    const allowed = await db.runTransaction(async transaction => {
+      const doc = await transaction.get(ref);
+      if (doc.exists && now - doc.data().requestedAt < 60000) return false;
+      transaction.set(ref, { codeHash: resetHash(`${email}:${code}`), requestedAt: now, expiresAt: now + 300000, attempts: 0 });
+      return true;
+    });
+    if (!allowed) return res.status(429).json({ error: 'Please wait a minute before requesting another code.' });
+    const users = await db.collection('users').where('email', '==', email).limit(1).get();
+    if (!users.empty) {
+      await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
+        service_id: EMAILJS_SERVICE_ID, template_id: EMAILJS_RESET_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY, accessToken: EMAILJS_PRIVATE_KEY,
+        template_params: { to_email: email, to_name: users.docs[0].data().name || email, otp_code: code, otp_purpose: 'Password reset' }
+      }, { timeout: 10000 });
+    }
     res.json({ message: 'If that email exists you will receive a code shortly.' });
   } catch (error) {
-    console.error('[Auth] Forgot-password error:', error);
-    res.status(500).json({ error: 'Request failed', details: error.message });
+    console.error('[Auth] Password reset request failed:', error.message);
+    res.status(503).json({ error: 'Could not send a verification code. Please try again.' });
   }
 });
 
-// ─── Verify OTP (stub — validation is done client-side via EmailJS) ──────────
-
-router.post('/verify-otp', (req, res) => {
-  // OTP verification is handled locally on the frontend (emailService.js).
-  // This stub exists so any legacy callers don't get a 404.
-  res.json({ message: 'ok' });
+router.post('/verify-otp', async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const code = String(req.body.code || '');
+  if (!email || !/^\d{6}$/.test(code) || !process.env.JWT_SECRET) return res.status(400).json({ error: 'Invalid or expired code.' });
+  try {
+    const db = getFirestore();
+    const ref = resetRef(email);
+    const token = crypto.randomBytes(32).toString('hex');
+    const valid = await db.runTransaction(async transaction => {
+      const doc = await transaction.get(ref);
+      if (!doc.exists) return false;
+      const data = doc.data();
+      if (data.expiresAt <= Date.now() || data.attempts >= 5 || !data.codeHash) return false;
+      if (data.codeHash !== resetHash(`${email}:${code}`)) {
+        transaction.update(ref, { attempts: data.attempts + 1 });
+        return false;
+      }
+      transaction.update(ref, { codeHash: null, tokenHash: resetHash(token), tokenExpiresAt: Date.now() + 600000 });
+      return true;
+    });
+    if (!valid) return res.status(400).json({ error: 'Invalid or expired code. Request a new code if needed.' });
+    res.json({ resetToken: token });
+  } catch (error) {
+    console.error('[Auth] Reset verification failed:', error.message);
+    res.status(500).json({ error: 'Could not verify the code.' });
+  }
 });
-
-// ─── Resend OTP (stub — sending is done client-side via EmailJS) ─────────────
-
-router.post('/resend-otp', (req, res) => {
-  res.json({ message: 'ok' });
-});
-
-// ─── Reset password ──────────────────────────────────────────────────────────
 
 router.post('/reset-password', async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const { newPassword, resetToken } = req.body;
+  if (!email || typeof newPassword !== 'string' || newPassword.length < 8 || typeof resetToken !== 'string' || !process.env.JWT_SECRET) {
+    return res.status(400).json({ error: 'Invalid reset request.' });
+  }
   try {
-    const { email, newPassword } = req.body;
-
-    if (!email || !newPassword) {
-      return res.status(400).json({ error: 'Email and newPassword are required' });
-    }
-
-    console.log(`[Auth] Password reset for: ${email}`);
-
     const db = getFirestore();
-    const snapshot = await db.collection('users').where('email', '==', email).get();
-
-    if (snapshot.empty) {
-      // Generic response to avoid email enumeration
-      return res.json({ message: 'Password updated.' });
-    }
-
-    const userDoc = snapshot.docs[0];
-    const user = userDoc.data();
-    
-    // Check if new password was used before (in last 5 passwords)
-    const passwordHistory = user.passwordHistory || [];
-    const allPreviousHashes = [user.password, ...passwordHistory].slice(0, 5);
-    
-    // Check all hashes in constant time
-    const comparisonResults = await Promise.all(
-      allPreviousHashes.map(hash => bcrypt.compare(newPassword, hash))
-    );
-    
-    // Check if any comparison matched
-    const isReused = comparisonResults.some(result => result === true);
-    if (isReused) {
-      return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
-    }
-    
+    const users = await db.collection('users').where('email', '==', email).limit(1).get();
+    if (users.empty) return res.status(400).json({ error: 'Invalid or expired reset request.' });
+    const userRef = users.docs[0].ref;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
-    // Update password history - keep last 5
-    const updatedHistory = [user.password, ...passwordHistory].slice(0, 5);
-    
-    await userDoc.ref.update({ 
-      password: hashedPassword, 
-      passwordHistory: updatedHistory,
-      updatedAt: new Date().toISOString() 
+    const result = await db.runTransaction(async transaction => {
+      const resetDoc = await transaction.get(resetRef(email));
+      const userDoc = await transaction.get(userRef);
+      const reset = resetDoc.data();
+      if (!reset || !reset.tokenHash || reset.tokenExpiresAt <= Date.now() || reset.tokenHash !== resetHash(resetToken)) return 'invalid';
+      const user = userDoc.data();
+      const history = [user.password, ...(user.passwordHistory || [])].slice(0, 5);
+      const reused = await Promise.all(history.map(hash => bcrypt.compare(newPassword, hash)));
+      if (reused.some(Boolean)) return 'reused';
+      transaction.update(userRef, { password: hashedPassword, passwordHistory: history, updatedAt: new Date().toISOString() });
+      transaction.delete(resetRef(email));
+      return 'ok';
     });
-
-    console.log(`[Auth] Password reset complete: ${email}`);
+    if (result === 'reused') return res.status(400).json({ error: 'You cannot reuse a previous password. Please choose a new password.' });
+    if (result !== 'ok') return res.status(400).json({ error: 'Invalid or expired reset request.' });
     res.json({ message: 'Password updated successfully.' });
   } catch (error) {
-    console.error('[Auth] Reset password error:', error);
-    res.status(500).json({ error: 'Failed to reset password', details: error.message });
+    console.error('[Auth] Password reset failed:', error.message);
+    res.status(500).json({ error: 'Could not reset password.' });
   }
 });
 

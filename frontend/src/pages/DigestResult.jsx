@@ -122,12 +122,18 @@ export default function DigestResults() {
         };
       });
 
-      const [lec, trans] = await Promise.all([
+      const [lec, trans, savedSegments] = await Promise.all([
         base44.entities.Lecture.get(lecId),
         base44.entities.Transcript.filter({ lecture_id: lecId }, "timestamp", 500),
+        base44.entities.DigestSegment.filter({ digest_id: id }, "start_time", 100),
       ]);
       setLecture(lec);
-      setSegments(mappedSegs);
+      const actualSegments = savedSegments.map((segment) => ({
+        ...segment,
+        topic: segment.summary || "Lecture segment",
+        explanation: segment.reason || "",
+      }));
+      setSegments(actualSegments);
       setTranscripts(trans || []);
       
       // Generate related queries if not in digest (fallback for old digests)
@@ -578,21 +584,15 @@ export default function DigestResults() {
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
               <Search className="w-4 h-4" /> Relevant Segments
             </h3>
+            {digest.learning_goal && <p className="text-sm text-muted-foreground mb-3">Selected for your goal: {digest.learning_goal}</p>}
             <div className="space-y-2">
-              {relatedQueries.length > 0 ? (
-                relatedQueries.map((query, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleQueryClick(query)}
-                    className="w-full text-left px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-primary/40 transition-colors text-sm text-foreground flex items-center gap-2 group"
-                  >
-                    <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                    <span className="flex-1">{query}</span>
-                  </button>
-                ))
-              ) : (
+              {segments.length > 0 ? segments.map((segment) => (
+                <SegmentCard key={segment.id} segment={segment}
+                  active={activeSegment === segment.id}
+                  onSeek={() => seekTo(segment.start_time, segment.id)} />
+              )) : (
                 <p className="text-sm text-muted-foreground">
-                  No specific topics detected in this digest to explore further.
+                  No relevant segments were saved for this digest. Generate a new digest to find segments for your learning goal.
                 </p>
               )}
             </div>

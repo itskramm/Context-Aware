@@ -1,6 +1,6 @@
 import express from 'express';
 import { getFirestore } from '../config/database.js';
-import { generateSummaryWithGroq, generateQuestionsWithGroq } from '../services/groqService.js';
+import { generateSummaryWithGroq, generateQuestionsWithGroq, generateDigestWithGroq } from '../services/groqService.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -108,7 +108,11 @@ router.post('/generateDigest', async (req, res) => {
     }
     
     // Combine transcript text
-    const fullTranscript = transcriptsSnap.docs.map(doc => doc.data().text).join(' ');
+    const transcriptEntries = transcriptsSnap.docs.map(doc => doc.data())
+      .filter(entry => !Array.isArray(entry.segments) && entry.text);
+    const fullTranscript = transcriptEntries.map(entry =>
+      `[${Math.floor(entry.timestamp || 0)} seconds] ${entry.text}`
+    ).join('\n');
     
     // Generate AI summary based on learning goal
     console.log('Generating personalized digest with Groq GPT-OSS-120B...');
@@ -116,7 +120,7 @@ router.post('/generateDigest', async (req, res) => {
     const truncatedTranscript = fullTranscript.length > 18000
       ? fullTranscript.substring(0, 18000) + '... [transcript truncated]'
       : fullTranscript;
-    const prompt = `Given this lecture transcript and the student's learning goal, identify the most relevant sections.
+    const prompt = `Given this timestamped lecture transcript and the student's learning goal, identify the most relevant sections. Use only timestamps and content supported by the transcript; start_time and end_time must be seconds in the lecture. Do not invent sections.
 
 Learning Goal: ${learning_goal}
 ${topics.length > 0 ? `Topics of Interest: ${topics.join(', ')}` : ''}
@@ -141,36 +145,17 @@ Respond in JSON format:
   ]
 }`;
     
-    const aiResponse = await generateSummaryWithGroq(prompt);
-    
-    // Parse AI response
-    let digestData;
-    try {
-      // Try to parse as JSON
-      const jsonMatch = aiResponse.summary.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        digestData = JSON.parse(jsonMatch[0]);
-      } else {
-        // Fallback: create basic digest
-        digestData = {
-          title: `Digest: ${learning_goal.substring(0, 50)}`,
-          relevance_explanation: aiResponse.summary,
-          key_takeaways: aiResponse.keyPoints || [],
-          topics: topics,
-          segments: []
-        };
-      }
-    } catch (parseError) {
-      console.warn('Could not parse AI response as JSON, using fallback');
-      digestData = {
-        title: `Digest: ${learning_goal.substring(0, 50)}`,
-        relevance_explanation: aiResponse.summary,
-        key_takeaways: aiResponse.keyPoints || [],
-        topics: topics,
-        segments: []
-      };
-    }
-    
+    const digestData = await generateDigestWithGroq(prompt);
+    digestData.segments = Array.isArray(digestData.segments)
+      ? digestData.segments.filter(seg =>
+          Number.isFinite(seg.start_time) && Number.isFinite(seg.end_time) &&
+          seg.start_time >= 0 && seg.end_time > seg.start_time &&
+          (!lecture.duration || seg.end_time <= lecture.duration)
+        )
+      : [];
+    digestData.key_takeaways = Array.isArray(digestData.key_takeaways) ? digestData.key_takeaways : [];
+    digestData.topics = Array.isArray(digestData.topics) ? digestData.topics : [];
+
     // Calculate total duration and time saved
     const totalDuration = digestData.segments.reduce((sum, seg) => sum + (seg.end_time - seg.start_time), 0);
     const estimatedTimeSaved = Math.max(0, (lecture.duration || 0) - totalDuration);
@@ -196,6 +181,7 @@ Respond in JSON format:
       estimated_time_saved: estimatedTimeSaved,
       estimated_time_saved_label: formatDuration(estimatedTimeSaved),
       created_date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       processing_status: 'ready'
     });
     

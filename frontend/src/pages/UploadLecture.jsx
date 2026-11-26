@@ -94,7 +94,7 @@ export default function UploadLecture() {
       formData.append('tags', tags);
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const token = localStorage.getItem('token');
+      const token = base44.getToken();
       
       const xhr = new XMLHttpRequest();
       
@@ -162,15 +162,15 @@ export default function UploadLecture() {
               <AlertDescription>
                 Convert YouTube videos to MP4 files using{' '}
                 <a 
-                  href="https://y2mate.com" 
+                  href="https://yt-mp4.net/" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="font-medium text-primary hover:underline inline-flex items-center gap-1"
                 >
-                  Y2mate
+                  YTMP4
                   <ExternalLink className="h-3 w-3" />
                 </a>
-                {' '}— a free and trusted converter (third-party service). Download the video, then upload it here.
+                {' '}— a third-party converter. Download the video, then upload it here.
               </AlertDescription>
             </Alert>
 

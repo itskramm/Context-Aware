@@ -55,17 +55,15 @@ router.get('/', async (req, res) => {
     const db = getFirestore();
     const { status, uploadedBy, limit = 50 } = req.query;
     
-    let query = db.collection('lectures');
+    let query = db.collection('lectures').where('uploadedBy', '==', req.user.userId);
     
     if (status) {
       query = query.where('status', '==', status);
     }
     
-    if (uploadedBy) {
-      query = query.where('uploadedBy', '==', uploadedBy);
-    }
+
     
-    query = query.orderBy('uploadedAt', 'desc').limit(parseInt(limit));
+    query = query.limit(parseInt(limit));
     
     const snapshot = await query.get();
     
@@ -77,8 +75,7 @@ router.get('/', async (req, res) => {
       });
     });
 
-    // Cache for 2 minutes (lectures list changes more often)
-    res.set('Cache-Control', 'public, max-age=120, s-maxage=120');
+    lectures.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
     res.json({ lectures, count: lectures.length });
   } catch (error) {
     console.error('Get lectures error:', error);
@@ -109,7 +106,8 @@ router.get('/:id', async (req, res) => {
 // Create lecture
 router.post('/', async (req, res) => {
   try {
-    const { title, videoUrl, uploadedBy, tags = [], purpose } = req.body;
+    const { title, videoUrl, tags = [], purpose } = req.body;
+    const uploadedBy = req.user.userId;
 
     if (!title || !videoUrl || !uploadedBy) {
       return res.status(400).json({ error: 'Title, videoUrl, and uploadedBy are required' });
@@ -176,7 +174,8 @@ router.patch('/:id', async (req, res) => {
     }
 
     const updates = { ...req.body };
-    delete updates.id; // Don't allow ID to be updated
+    delete updates.id;
+    delete updates.uploadedBy;
     
     await lectureRef.update(updates);
 
@@ -222,7 +221,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { title, course, uploadedBy, tags, purpose } = req.body;
+    const { title, course, tags, purpose } = req.body;
+    const uploadedBy = req.user.userId;
 
     if (!title || !uploadedBy) {
       // Cleanup uploaded file

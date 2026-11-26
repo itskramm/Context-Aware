@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +23,6 @@ import {
   toISODate,
   latestSelectableBirthday,
 } from "@/lib/authValidations";
-import { recordPasswordHash } from "@/lib/passwordHistory";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { sendOtp, verifyOtp } from "@/lib/emailService";
 
@@ -30,6 +30,8 @@ const MAX_OTP_ATTEMPTS = 3;
 const RESEND_COOLDOWN = 60;
 
 export default function Register() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [address, setAddress] = useState("");
@@ -47,6 +49,8 @@ export default function Register() {
   const [otpCode, setOtpCode] = useState("");
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [otpBlocked, setOtpBlocked] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   const maxBirthday = toISODate(latestSelectableBirthday());
@@ -114,22 +118,14 @@ export default function Register() {
     if (Object.values(errs).some(Boolean)) return;
     if (!privacyAgreed) return;
 
+    setStep("otp");
     setLoading(true);
     try {
-      // First create the account, then send OTP for email verification
-      await base44.auth.register({ email, password, name: fullName.trim() });
       await sendOtp(email, fullName.trim(), "register");
-      setStep("otp");
+      setOtpSent(true);
       setCooldown(RESEND_COOLDOWN);
     } catch (err) {
-      const msg = err?.message || "";
-      if (/already|exist|registered|duplicate|taken/i.test(msg)) {
-        setGlobalError(
-          "Email already registered. Please use a different email address or reset your password."
-        );
-      } else {
-        setGlobalError(msg || "Registration failed. Please try again.");
-      }
+      setGlobalError("We couldn't send the verification code. Please try sending it again.");
     } finally {
       setLoading(false);
     }
@@ -137,7 +133,7 @@ export default function Register() {
 
   const handleVerify = async () => {
     setGlobalError("");
-    const err = verifyOtp(email, otpCode);
+    const err = otpVerified ? null : verifyOtp(email, otpCode);
     if (err) {
       const attempts = otpAttempts + 1;
       setOtpAttempts(attempts);
@@ -152,10 +148,13 @@ export default function Register() {
       return;
     }
 
-    // OTP verified — save profile details then redirect to login
+    // Create the account only after the email code has been verified.
+    setOtpVerified(true);
     setLoading(true);
     try {
-      await base44.auth.updateMe({
+      const response = await base44.auth.register({
+        email,
+        password,
         name: fullName.trim(),
         birthday,
         address: address.trim(),
@@ -163,14 +162,17 @@ export default function Register() {
         username: email,
         access_type: "User",
       });
-      await recordPasswordHash(email, password);
-    } catch (profileErr) {
-      console.error("Could not save profile details", profileErr);
+      login(response.user, response.token);
+      const returnTo = safeReturnTo();
+      navigate(returnTo === "/" ? "/dashboard" : returnTo, { replace: true });
+    } catch (err) {
+      const msg = err?.message || "";
+      setGlobalError(/already|exist|registered|duplicate|taken/i.test(msg)
+        ? "This email is already registered. Please sign in or reset your password."
+        : msg || "Could not create your account. Please try again.");
     } finally {
       setLoading(false);
     }
-
-    window.location.href = "/login?registered=1";
   };
 
   const handleResend = async () => {
@@ -178,7 +180,9 @@ export default function Register() {
     setLoading(true);
     try {
       await sendOtp(email, fullName.trim(), "register");
+      setOtpSent(true);
       setOtpAttempts(0);
+      setOtpVerified(false);
       setOtpBlocked(false);
       setOtpCode("");
       setCooldown(RESEND_COOLDOWN);
@@ -197,6 +201,7 @@ export default function Register() {
     return (
       <OtpStep
         email={email}
+        otpSent={otpSent}
         otpCode={otpCode}
         setOtpCode={setOtpCode}
         loading={loading}

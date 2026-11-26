@@ -186,6 +186,21 @@ export async function transcribeWithGroq(audioFilePath) {
 // Leaves ~5500 tokens for transcript. At ~4 chars/token = ~20000 chars safe.
 const MAX_TRANSCRIPT_CHARS = 18000;
 
+export async function generateDigestWithGroq(prompt) {
+  const groq = getGroqClient();
+  if (!groq) throw new Error('Groq API key not configured');
+  const completion = await groq.chat.completions.create({
+    model: 'openai/gpt-oss-120b',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
+    max_tokens: 2000,
+    response_format: { type: 'json_object' }
+  });
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error('No response from Groq');
+  return JSON.parse(content);
+}
+
 export async function generateSummaryWithGroq(transcript) {
   try {
     console.log('Generating summary with Groq GPT-OSS-120B (FREE)...');

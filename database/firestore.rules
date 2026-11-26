@@ -1,53 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // IMPORTANT: Backend uses Firebase Admin SDK with custom JWT authentication
-    // All authentication is handled by the Express backend
-    // These rules allow the Admin SDK to perform operations on behalf of authenticated users
-    
-    // Helper function - Admin SDK always has full access
-    function isAdminSDK() {
-      return request.auth != null && request.auth.token.admin == true;
-    }
-    
-    // Users Collection
-    match /users/{userId} {
-      // Admin SDK (backend) can do everything
-      allow read, write: if true;
-    }
-    
-    // Lectures Collection
-    match /lectures/{lectureId} {
-      // Admin SDK (backend) handles all authorization
-      allow read, write: if true;
-      
-      // Lecture comments subcollection
-      match /comments/{commentId} {
-        allow read, write: if true;
-      }
-    }
-    
-    // Digests Collection
-    match /digests/{digestId} {
-      // Backend validates user permissions
-      allow read, write: if true;
-    }
-    
-    // Transcripts Collection
-    match /transcripts/{transcriptId} {
-      // Backend controls access
-      allow read, write: if true;
-    }
-    
-    // System Collections
-    match /system/{document=**} {
-      allow read, write: if true;
-    }
-    
-    // Analytics Collection
-    match /analytics/{document=**} {
-      allow read, write: if true;
+    // The server uses the Admin SDK, which bypasses these rules.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

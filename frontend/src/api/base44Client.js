@@ -12,7 +12,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Cache helper functions
 const getCacheKey = (url, params) => {
-  return `${url}${params ? '?' + new URLSearchParams(params).toString() : ''}`;
+  return `${localStorage.getItem('auth_token') || ''}:${url}${params ? '?' + new URLSearchParams(params).toString() : ''}`;
 };
 
 const getCachedData = (key) => {
@@ -80,6 +80,7 @@ class Base44Client {
    * Set authentication token
    */
   setToken(token) {
+    cache.clear();
     if (token) {
       localStorage.setItem('auth_token', token);
     } else {
@@ -215,7 +216,7 @@ class Base44Client {
   // Lectures methods
   lectures = {
     list: (params) => this.get('/lectures', params),
-    get: (id) => this.get(`/lectures/${id}`),
+    get: (id) => this.get(`/lectures/${id}`, {}, { cache: false }),
     create: (lectureData) => this.post('/lectures', lectureData),
     update: (id, lectureData) => this.put(`/lectures/${id}`, lectureData),
     delete: (id) => this.delete(`/lectures/${id}`),

@@ -8,13 +8,13 @@ import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordStrength from "@/components/PasswordStrength";
 import { validatePassword } from "@/lib/authValidations";
-import { isPasswordReused, recordPasswordHash } from "@/lib/passwordHistory";
 import BackButton from "@/components/BackButton";
 import { toast } from "@/components/ui/use-toast";
 
 export default function ResetPassword() {
   // Email is set in sessionStorage by ForgotPassword after OTP is verified.
   const verifiedEmail = sessionStorage.getItem("pwd_reset_verified_email") || "";
+  const resetToken = sessionStorage.getItem("pwd_reset_token") || "";
 
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
@@ -32,24 +32,11 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      if (verifiedEmail) {
-        const reused = await isPasswordReused(verifiedEmail, newPassword);
-        if (reused) {
-          setError("You cannot reuse a previous password. Please choose a new password.");
-          return;
-        }
-      }
-
-      // Update the password via the backend
-      await base44.auth.resetPassword({ email: verifiedEmail, newPassword });
-
-      // Record new password hash for future reuse checks
-      if (verifiedEmail) {
-        await recordPasswordHash(verifiedEmail, newPassword).catch(() => {});
-      }
+      await base44.auth.resetPassword({ email: verifiedEmail, newPassword, resetToken });
 
       // Clean up
       sessionStorage.removeItem("pwd_reset_verified_email");
+      sessionStorage.removeItem("pwd_reset_token");
       localStorage.removeItem("pwd_reset_email");
 
       navigate("/login?reset=1");
@@ -61,7 +48,7 @@ export default function ResetPassword() {
   };
 
   // Guard: if no verified email the user hasn't gone through OTP
-  if (!verifiedEmail) {
+  if (!verifiedEmail || !resetToken) {
     return (
       <AuthLayout
         icon={AlertTriangle}

@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/dashboard', async (req, res) => {
   try {
     const db = getFirestore();
-    const { userId } = req.query;
+    const userId = req.user.userId;
 
     // Base queries — scope to user if provided
     let lecturesRef = db.collection('lectures');
@@ -134,6 +134,7 @@ router.get('/activity', async (req, res) => {
     startDate.setDate(startDate.getDate() - parseInt(days));
     
     const interactions = await db.collection('interactions')
+      .where('userId', '==', req.user.userId)
       .where('timestamp', '>=', startDate.toISOString())
       .orderBy('timestamp', 'asc')
       .get();

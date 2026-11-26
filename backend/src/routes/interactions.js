@@ -14,6 +14,7 @@ router.post('/', async (req, res) => {
     }
     
     const interactionData = {
+      userId: req.user.userId,
       lectureId: lecture_id || null,
       digestId: digest_id || null,
       interactionType: interaction_type,
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
     const db = getFirestore();
     const { lecture_id, digest_id, interaction_type, limit = 100 } = req.query;
     
-    let query = db.collection('interactions');
+    let query = db.collection('interactions').where('userId', '==', req.user.userId);
     
     if (lecture_id) {
       query = query.where('lectureId', '==', lecture_id);

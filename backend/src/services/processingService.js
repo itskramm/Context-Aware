@@ -91,6 +91,7 @@ export async function processLecture(lectureId) {
       try {
         // Tier 1: Attempt YouTube captions (FREE, instant, no download)
         console.log('Tier 1: Attempting YouTube captions...');
+        await lectureDoc.ref.update({ processing_status: 'transcribing' });
         transcription = await fetchYouTubeTranscript(lecture.videoUrl || lecture.file_url);
         console.log('✅ Successfully fetched YouTube captions!');
         
@@ -135,6 +136,7 @@ export async function processLecture(lectureId) {
 
       // Non-YouTube: extract audio and transcribe with Groq Whisper
       console.log('Step 1: Extracting audio...');
+      await lectureDoc.ref.update({ processing_status: 'extracting_audio' });
       audioPath = await extractAudio(lecture.videoUrl || lecture.file_url);
       duration = await getAudioDuration(audioPath);
       
@@ -182,6 +184,7 @@ export async function processLecture(lectureId) {
     
     // Step 3: Generate summary with Groq GPT-OSS-120B (FREE!)
     console.log('Step 3: Generating summary with Groq GPT-OSS-120B (FREE)...');
+    await lectureDoc.ref.update({ processing_status: 'identifying_segments' });
     const summary = await generateSummaryWithGroq(transcription.text);
     
     // Step 3.5: Extract topics from summary
@@ -218,6 +221,8 @@ export async function processLecture(lectureId) {
       console.log('Question generation skipped:', err.message);
     }
     
+    await lectureDoc.ref.update({ processing_status: 'preparing_index' });
+
     // Save digest
     const digestRef = await db.collection('digests').add({
       lectureId: lectureId,

@@ -9,6 +9,8 @@ import { initializeFirebase } from './config/database.js';
 
 // Import routes (after dotenv is loaded)
 import authRoutes from './routes/auth.js';
+import { authenticate } from './middleware/auth.js';
+import { privateData } from './middleware/privateData.js';
 import lectureRoutes from './routes/lectures.js';
 import digestRoutes from './routes/digests.js';
 import processingRoutes from './routes/processing.js';
@@ -51,17 +53,17 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/lectures', lectureRoutes);
-app.use('/api/digests', digestRoutes);
-app.use('/api/processing', processingRoutes);
-app.use('/api/transcripts', transcriptRoutes);
-app.use('/api/topics', topicRoutes);
-app.use('/api/digest-segments', segmentRoutes);
-app.use('/api/interactions', interactionRoutes);
-app.use('/api/functions', functionRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/api/lectures', authenticate, privateData('lectures'), lectureRoutes);
+app.use('/api/digests', authenticate, privateData('digests'), digestRoutes);
+app.use('/api/processing', authenticate, privateData('processing'), processingRoutes);
+app.use('/api/transcripts', authenticate, privateData('transcripts'), transcriptRoutes);
+app.use('/api/topics', authenticate, privateData('topics'), topicRoutes);
+app.use('/api/digest-segments', authenticate, privateData('segments'), segmentRoutes);
+app.use('/api/interactions', authenticate, privateData('interactions'), interactionRoutes);
+app.use('/api/functions', authenticate, privateData('functions'), functionRoutes);
+app.use('/api/analytics', authenticate, privateData('analytics'), analyticsRoutes);
+app.use('/api/chat', authenticate, privateData('chat'), chatRoutes);
+app.use('/api/upload', authenticate, privateData('upload'), uploadRoutes);
 
 // 404 handler
 app.use((req, res) => {

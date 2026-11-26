@@ -18,13 +18,17 @@ router.get('/', async (req, res) => {
       query = query.where('lectureId', '==', lecId).orderBy('timestamp', 'asc');
     }
     
-    query = query.limit(parseInt(limit));
+    // Allow for the full-transcript record, which is omitted from the list.
+    query = query.limit(parseInt(limit, 10) + 1);
     
     const snapshot = await query.get();
     
     let transcripts = [];
     snapshot.forEach(doc => {
       const data = doc.data();
+      // The aggregate record duplicates all timestamped rows. Keep it only when
+      // no individual segments were produced.
+      if (Array.isArray(data.segments) && data.segments.length > 0) return;
       transcripts.push({
         id: doc.id,
         lecture_id: data.lectureId,
@@ -36,13 +40,14 @@ router.get('/', async (req, res) => {
       });
     });
 
+    transcripts = transcripts.slice(0, parseInt(limit, 10));
+
     // Sort in memory if no lectureId filter (to avoid index requirement)
     if (!lecId) {
       transcripts = transcripts.sort((a, b) => a.timestamp - b.timestamp);
     }
 
-    // Cache for 5 minutes (transcripts don't change often)
-    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+    res.set('Cache-Control', 'no-store');
     res.json(transcripts);
   } catch (error) {
     console.error('Get transcripts error:', error);

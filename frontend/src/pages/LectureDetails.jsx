@@ -103,6 +103,29 @@ export default function LectureDetails() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!lecture || lecture.processing_status === "ready" || lecture.processing_status === "failed") return;
+    let cancelled = false;
+    let timer;
+    const poll = async () => {
+      try {
+        const latest = await base44.entities.Lecture.get(id);
+        if (cancelled) return;
+        if (latest.processing_status === "ready") {
+          await load();
+          return;
+        }
+        setLecture(latest);
+        if (latest.processing_status === "failed") return;
+      } catch (err) {
+        console.error("Could not refresh lecture status:", err);
+      }
+      if (!cancelled) timer = setTimeout(poll, 3000);
+    };
+    timer = setTimeout(poll, 3000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [id, lecture?.processing_status, load]);
+
   const seekTo = (seconds) => {
     playerRef.current?.seek(seconds);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -216,7 +239,7 @@ export default function LectureDetails() {
         <ProcessingBanner lecture={lecture} />
       ) : (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-          <p className="text-sm text-destructive font-medium">We couldn't finish analyzing this lecture. Please try again.</p>
+          <p className="text-sm text-destructive font-medium">{lecture.error || "We couldn't finish analyzing this lecture. Please try again."}</p>
           <Button className="mt-4" variant="outline" onClick={() => navigate("/upload")}>Re-upload</Button>
         </div>
       )}
@@ -270,22 +293,17 @@ export default function LectureDetails() {
 
 // Memoized components for better performance
 function ProcessingBanner({ lecture }) {
-  // Map backend status values to percentage and human label
-  const STATUS_PROGRESS = {
-    uploading:        { pct: 10, label: "Uploading…" },
-    pending:          { pct: 15, label: "Queued…" },
-    processing:       { pct: 25, label: "Processing…" },
-    extracting_audio: { pct: 40, label: "Extracting audio…" },
-    transcribing:     { pct: 65, label: "Transcribing…" },
-    generating_transcript: { pct: 65, label: "Transcribing…" },
-    identifying_segments:  { pct: 80, label: "Identifying topics…" },
-    preparing_index:  { pct: 90, label: "Finalizing…" },
-    ready:            { pct: 100, label: "Ready" },
-    failed:           { pct: 100, label: "Failed" },
+  const labels = {
+    uploading: "Uploading…",
+    pending: "Queued…",
+    processing: "Preparing lecture…",
+    extracting_audio: "Extracting audio…",
+    transcribing: "Getting transcript…",
+    generating_transcript: "Getting transcript…",
+    identifying_segments: "Analyzing lecture…",
+    preparing_index: "Finalizing…",
   };
-
-  const status = lecture.processing_status || "processing";
-  const { pct, label } = STATUS_PROGRESS[status] || { pct: 30, label: "Processing…" };
+  const label = labels[lecture.processing_status] || "Processing…";
 
   return (
     <div className="rounded-2xl border border-border bg-card p-8">
@@ -295,14 +313,8 @@ function ProcessingBanner({ lecture }) {
           <p className="font-semibold">{label}</p>
           <p className="text-sm text-muted-foreground">Your lecture is being analyzed. This page will update shortly.</p>
         </div>
-        <span className="ml-auto text-2xl font-bold text-primary tabular-nums">{pct}%</span>
       </div>
-      <div className="w-full bg-muted rounded-full h-2.5">
-        <div
-          className="bg-primary h-2.5 rounded-full transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+
     </div>
   );
 }
